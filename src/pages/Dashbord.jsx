@@ -6,11 +6,12 @@ import { login, me } from "../features/login";
 import { setUserData } from "../redux/userslice";
 import { useDispatch, useSelector } from "react-redux";
 import Navbar from "../component/navbar.jsx";
-
+import Sidebar from "../component/sidebar.jsx"
 
 function Dashbord() {
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
+  const[activesession, setActivesession]=useState("projects")
 
   const { userdata } = useSelector((state) => state.user);
 
@@ -103,6 +104,9 @@ function Dashbord() {
       <div className="relative flex min-h-0 flex-1 flex-col"></div>
 
       <Navbar />
+     <div className="flex min-h-[calc(100vh-4rem)] flex-1">
+  <Sidebar activesession={activesession} setActivesession={setActivesession} />
+</div>
     </div>
   );
 }
