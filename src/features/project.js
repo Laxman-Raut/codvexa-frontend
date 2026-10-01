@@ -1,4 +1,4 @@
-import api from "../utils/axios.js";
+import { api } from "../utils/axios.js";
 
 export const createproject = async ({ name, description }) => {
     try {

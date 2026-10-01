@@ -26,9 +26,7 @@ function Sidebar({ activesession, setActivesession }) {
               strokeWidth={2}
               className="relative"
             />
-            <span>
-              projects
-            </span>
+            <span>projects</span>
           </motion.div>
 
           <motion.div
@@ -45,10 +43,24 @@ function Sidebar({ activesession, setActivesession }) {
               strokeWidth={2}
               className="relative"
             />
-            <span>
-              starred
-            </span>
+            <span>starred</span>
           </motion.div>
+        </div>
+
+        <div className="my-4 h-px bg-slate-200/70 dark:bg-white/[0.06]"></div>
+
+        <div className="rounded-xl border border-slate-200/70 bg-white/70 p-3.5 shadow-sm backdrop-blur-xl dark:border-white/[0.07] dark:bg-white/[0.03] dark:shadow-none">
+          <p className="text-sm font-medium text-slate-900 dark:text-white">
+            Upgrade plan
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            Unlock more features and build without limits.
+          </p>
+
+          <button className="mt-3 w-full rounded-lg bg-slate-900 px-3 py-2 text-xs font-medium text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200">
+            Upgrade
+          </button>
         </div>
 
       </div>
