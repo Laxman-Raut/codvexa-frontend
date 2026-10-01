@@ -1,24 +1,26 @@
 import { signInWithPopup } from "firebase/auth";
 import React, { useEffect, useState } from "react";
-import { FcGoogle,  } from "react-icons/fc";
-import { Loader2, Plus } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
+import { Loader2, Plus, Folder } from "lucide-react";
 import { auth, googleProvider } from "../../firebase";
 import { login, me } from "../features/login";
 import { setUserData } from "../redux/userslice";
 import { useDispatch, useSelector } from "react-redux";
 import Navbar from "../component/navbar.jsx";
-import Sidebar from "../component/sidebar.jsx"
-import {getprojects, getstarredproject } from"../features/project.js"
+import Sidebar from "../component/sidebar.jsx";
+import { getprojects, getstarredproject } from "../features/project.js";
 import { setprojects, setstarredprojects } from "../redux/projectslice.js";
+
 function Dashbord() {
   const [loading, setLoading] = useState(false);
+  const [loadingprojects, setloadingprojects] = useState(false);
 
-  const [loadingprojects,setloadingprojects] =useState(false)
   const dispatch = useDispatch();
-  const[activesession, setActivesession]=useState("projects")
+  const [activesession, setActivesession] = useState("projects");
 
   const { userdata } = useSelector((state) => state.user);
-  const { projects,starredprojects } = useSelector((state) => state.project);
+  const { projects, starredprojects } = useSelector((state) => state.project);
+
   useEffect(() => {
     const checkUser = async () => {
       const data = await me();
@@ -49,17 +51,27 @@ function Dashbord() {
   };
 
   const fetchAllprojects = async () => {
-   setloadingprojects(true)
+    setloadingprojects(true);
+
     const data = await getprojects();
-    dispatch(setprojects(data));
-    setloadingprojects(false)
+
+    if (data) {
+      dispatch(setprojects(data));
+    }
+
+    setloadingprojects(false);
   };
 
   const fetchstarredproject = async () => {
-    setloadingprojects(true)
+    setloadingprojects(true);
+
     const data = await getstarredproject();
-    dispatch(setstarredprojects(data));
-      setloadingprojects(false)
+
+    if (data) {
+      dispatch(setstarredprojects(data));
+    }
+
+    setloadingprojects(false);
   };
 
   useEffect(() => {
@@ -71,22 +83,16 @@ function Dashbord() {
   }, [activesession]);
 
   if (!userdata) {
-  return (
-    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#07070c] px-4 transition-colors duration-300">
-
-        <h1>dashbrd</h1>
-
+    return (
+      <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#07070c] px-4 transition-colors duration-300">
         <div className="pointer-events-none absolute top-32 left-1/2 hidden h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-white/[0.05] blur-[120px] dark:block"></div>
 
         <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0b0b11] p-8 text-center shadow-xl shadow-black/40 backdrop-blur-xl">
-
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-black/5 dark:border-transparent">
-            <span className="text-lg font-bold text-slate-900">
-              AI
-            </span>
+            <span className="text-lg font-bold text-slate-900">AI</span>
           </div>
 
-          <h2 className="mb-2 text-xl font-bold text-slate-900 dark:text-white">
+          <h2 className="mb-2 text-xl font-bold text-white">
             Welcome to Codvexa
           </h2>
 
@@ -115,11 +121,13 @@ function Dashbord() {
           <p className="mt-4 text-xs leading-5 text-slate-500">
             By continuing, you agree to our Terms and Privacy Policy.
           </p>
-
         </div>
       </div>
     );
   }
+
+  const currentProjects =
+    activesession === "starred" ? starredprojects : projects;
 
   return (
     <div className="relative flex h-screen w-full flex-col overflow-hidden bg-slate-50 transition-colors duration-300 dark:bg-[#07070c]">
@@ -127,52 +135,73 @@ function Dashbord() {
 
       <div className="pointer-events-none absolute right-0 top-1/3 hidden h-[500px] w-[500px] rounded-full bg-white/[0.04] blur-[130px] dark:block" />
 
-      <div className="relative flex min-h-0 flex-1 flex-col"></div>
-
       <Navbar />
-     <div className="flex min-h-[calc(100vh-4rem)] flex-1">
-  <Sidebar activesession={activesession} setActivesession={setActivesession} />
 
-  <div className="min-h-0 flex-1 overflow-y-auto px-8 py-8 [scrollbar-width:thin] 
-  [scrollbar-color:rgba(100,116,139,0.35)_transparent] [&::-webkit-scrollbar]:w-2 
-  [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:border-2 
-  [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400
-   [&::-webkit-scrollbar-thumb]:hover:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 dark:[&::-webkit-scrollbar-thumb]:hover:bg-white/20">
- 
- <div className="mb-8 flex items-start justify-between">
-  <div>
-    <h1 className="flex items-center gap-2 text-[26px] font-bold text-slate-900 dark:text-white">
-      welcome back,{" "}
-      {(userdata?.name || "User").split(" ")[0]}
-      <span>👋</span>
-    </h1>
-    <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
-      Ready to build something amazing today?
-    </p>
-  </div>
-  <button className="flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-sm transition-opacity duration-150 hover:opacity-90 dark:bg-white dark:text-slate-900">
-  <Plus size={16} />
-  New project
-</button>
- </div>
- <div className="mb-4 flex items-center justify-between">
-  <h2 className="text-[16px] font-semibold text-slate-900 dark:text-white">
-   {activesession === "starred" ? "Starred projects" : "Recent projects"}
-  </h2>
-        
- </div>
-  {loadingprojects ? (
-  <div className="flex min-h-[300px] items-center justify-center">
-    <Loader2
-    size={28}
-    className="animate-spin text-slate-400 dark:text-slate-500"/>
-  </div>
- ) :projects.length ==0?(
-  <div className="mb-8 flex flex-col items-center justify-center rounded-2xl border border-slate-300 bg-white/40 py-16 text-center dark:border-white/[0.1] dark:bg-white/[0.01]"> </div>
- ) : null}
+      <div className="flex min-h-[calc(100vh-4rem)] flex-1">
+        <Sidebar
+          activesession={activesession}
+          setActivesession={setActivesession}
+        />
 
-  </div>
-</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-8 py-8 [scrollbar-width:thin] [scrollbar-color:rgba(100,116,139,0.35)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:hover:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 dark:[&::-webkit-scrollbar-thumb]:hover:bg-white/20">
+          <div className="mb-8 flex items-start justify-between">
+            <div>
+              <h1 className="flex items-center gap-2 text-[26px] font-bold text-slate-900 dark:text-white">
+                welcome back,{" "}
+                {(userdata?.name || "User").split(" ")[0]}
+                <span>👋</span>
+              </h1>
+
+              <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
+                Ready to build something amazing today?
+              </p>
+            </div>
+
+            <button className="flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-sm transition-opacity duration-150 hover:opacity-90 dark:bg-white dark:text-slate-900">
+              <Plus size={16} />
+              New project
+            </button>
+          </div>
+
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-[16px] font-semibold text-slate-900 dark:text-white">
+              {activesession === "starred"
+                ? "Starred projects"
+                : "Recent projects"}
+            </h2>
+          </div>
+
+          {loadingprojects ? (
+            <div className="flex min-h-[300px] items-center justify-center">
+              <Loader2
+                size={28}
+                className="animate-spin text-slate-400 dark:text-slate-500"
+              />
+            </div>
+          ) : currentProjects.length === 0 ? (
+            <div className="mb-8 flex flex-col items-center justify-center rounded-2xl border border-slate-300 bg-white/40 py-16 text-center dark:border-white/[0.1] dark:bg-white/[0.01]">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900/5 dark:bg-white/10">
+                <Folder
+                  size={24}
+                  className="text-slate-500 dark:text-white"
+                />
+              </div>
+
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                {activesession === "starred"
+                  ? "No starred projects"
+                  : "No projects yet"}
+              </h3>
+
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                {activesession === "starred"
+                  ? "Star a project to see it here."
+                  : "Create your first project and start building something amazing."}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
