@@ -80,7 +80,7 @@ function Navbar() {
   };
 
   return (
-    <header className="fixed top-0 left-0 z-50 flex h-16 w-full items-center justify-between border-b border-slate-200/70 bg-white/70 px-6 font-sans backdrop-blur-xl transition-colors duration-300 dark:border-white/[0.07] dark:bg-[#0b0b11]/80">
+    <header className="sticky top-0 z-50 flex h-16 w-full shrink-0 items-center justify-between border-b border-slate-200/70 bg-white/70 px-6 font-sans backdrop-blur-xl transition-colors duration-300 dark:border-white/[0.07] dark:bg-[#0b0b11]/80">
       <span className="text-[17px] font-bold tracking-tight text-slate-900 dark:text-white">
         codvexa
       </span>

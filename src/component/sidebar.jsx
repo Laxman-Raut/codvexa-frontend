@@ -11,7 +11,7 @@ function Sidebar({ activesession, setActivesession }) {
 
       <div className="flex flex-col gap-1">
 
-        <div>
+        <div className="flex flex-col gap-1">
           <motion.div
             whileTap={{ scale: 0.97 }}
             onClick={() => setActivesession("projects")}
