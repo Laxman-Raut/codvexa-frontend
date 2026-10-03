@@ -238,9 +238,10 @@ function Dashbord() {
               </div>
             ) : (
               <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {currentProjects.map((project, index) => (
+                {currentProjects.map((project ) => (
                   <ProjectCard
-                    key={project?._id || project?.id || index}
+                  
+                    
                     project={project}
                   />
                 ))}

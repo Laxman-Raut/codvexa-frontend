@@ -25,6 +25,8 @@ export const {
   setprojects,
   addNewproject,
   setstarredprojects,
+  updateProject,
+  removeProject,
 } = projectslice.actions;
 
 export default projectslice.reducer;
