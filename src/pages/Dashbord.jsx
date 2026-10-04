@@ -5,6 +5,7 @@ import { Loader2, Plus, Folder } from "lucide-react";
 import { auth, googleProvider } from "../../firebase";
 import { login, me } from "../features/login";
 import { setUserData } from "../redux/userslice";
+import { setprojects, setstarredprojects } from "../redux/projectslice";
 import { useDispatch, useSelector } from "react-redux";
 import Navbar from "../component/navbar.jsx";
 import Sidebar from "../component/sidebar.jsx";

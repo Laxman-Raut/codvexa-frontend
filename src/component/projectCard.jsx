@@ -11,6 +11,7 @@ function ProjectCard({ project }) {
 
   const dispatch = useDispatch();
 const handletogglestar = async () => {
+  
   setLoadingStar(true);
 
   const data = await togglestar(project?._id);
@@ -76,6 +77,8 @@ const handletogglestar = async () => {
       >
         {loadingDelete ? "Deleting..." : "Delete"}
       </button>
+
+      
     </motion.div>
   );
 }
