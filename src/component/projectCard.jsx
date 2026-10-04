@@ -3,25 +3,24 @@ import { motion } from "motion/react";
 import { Star } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { deleteproject, togglestar } from "../features/project";
-import { updateProject, removeProject } from "../redux/projectslice";
+import { removeProject, starproject } from "../redux/projectslice";
 
 function ProjectCard({ project }) {
   const [loadingStar, setLoadingStar] = useState(false);
   const [loadingDelete, setLoadingDelete] = useState(false);
 
   const dispatch = useDispatch();
+const handletogglestar = async () => {
+  setLoadingStar(true);
 
-  const handletogglestar = async () => {
-    setLoadingStar(true);
+  const data = await togglestar(project?._id);
 
-    const data = await togglestar(project?._id);
+  if (data) {
+    dispatch(starproject(data));
+  }
 
-    if (data) {
-      dispatch(updateProject(data));
-    }
-
-    setLoadingStar(false);
-  };
+  setLoadingStar(false);
+};
 
   const handledelete = async () => {
     setLoadingDelete(true);
@@ -54,12 +53,12 @@ function ProjectCard({ project }) {
         onClick={handletogglestar}
         disabled={loadingStar}
         whileTap={{ scale: 0.9 }}
-        className="absolute right-4 top-4 text-zinc-400 transition-colors hover:text-yellow-500 disabled:opacity-50"
+        className={`absolute right-4 top-4 transition-colors hover:text-yellow-500 disabled:opacity-50 ${project?.starred ? "text-yellow-500" : "text-zinc-400"}`}
       >
         <Star
-          size={18}
-          fill={project?.starred ? "currentColor" : "none"}
-        />
+  size={18}
+  fill={project?.starred ? "currentColor" : "none"}
+/>
       </motion.button>
 
       <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">

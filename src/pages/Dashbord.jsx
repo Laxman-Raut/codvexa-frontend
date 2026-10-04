@@ -9,7 +9,6 @@ import { useDispatch, useSelector } from "react-redux";
 import Navbar from "../component/navbar.jsx";
 import Sidebar from "../component/sidebar.jsx";
 import { createproject, getprojects, getstarredproject } from "../features/project.js";
-import { setprojects, setstarredprojects } from "../redux/projectslice.js";
 import ProjectCard from "../component/projectCard.jsx";
 import Createprojectmodel from "../component/Createprojectmodel.jsx";
 

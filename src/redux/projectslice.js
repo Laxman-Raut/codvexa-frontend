@@ -5,7 +5,6 @@ const projectslice = createSlice({
 
   initialState: {
     projects: [],
-   
   },
 
   reducers: {
@@ -16,17 +15,29 @@ const projectslice = createSlice({
     addNewproject: (state, action) => {
       state.projects.unshift(action.payload);
     },
+starproject: (state, action) => {
+  const project = state.projects.find(
+    p => p._id == action.payload._id
+  );
 
+  if (project) {
+    project.starred = action.payload.starred;
+  }
+},
 
+    removeProject: (state, action) => {
+      state.projects = state.projects.filter(
+        p => p._id != action.payload
+      );
+    }
   },
 });
 
 export const {
   setprojects,
   addNewproject,
-  setstarredprojects,
-  updateProject,
-  removeProject,
+  starproject,
+  removeProject
 } = projectslice.actions;
 
 export default projectslice.reducer;
