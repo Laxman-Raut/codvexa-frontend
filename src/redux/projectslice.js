@@ -6,11 +6,15 @@ const projectslice = createSlice({
   initialState: {
     projects: [],
     starredprojects: [],
+    currentproject:null
   },
 
   reducers: {
     setprojects: (state, action) => {
       state.projects = action.payload;
+    },
+     setcurrentproject: (state, action) => {
+      state.currentproject= action.payload;
     },
 
     setstarredprojects: (state, action) => {
@@ -45,6 +49,7 @@ export const {
   addNewproject,
   starproject,
   removeProject,
+  setcurrentproject,
 } = projectslice.actions;
 
 export default projectslice.reducer;

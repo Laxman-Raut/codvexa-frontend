@@ -5,7 +5,7 @@ import { useDispatch } from "react-redux";
 import Dashbord from "./pages/Dashbord.jsx";
 import { setUserData } from "./redux/userslice.js";
 import { me } from "./features/login.js";
-
+import ProjectPage from "./pages/projectpage.jsx";
 function App() {
   const dispatch = useDispatch();
 
@@ -27,7 +27,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashbord />} />
-      </Routes>
+<Route path="/project/:id" element={<ProjectPage />} /> </Routes>
     </BrowserRouter>
   );
 }

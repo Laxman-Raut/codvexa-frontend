@@ -3,25 +3,25 @@ import { motion } from "motion/react";
 import { Star } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { deleteproject, togglestar } from "../features/project";
-import { removeProject, starproject } from "../redux/projectslice";
+import { removeProject, setcurrentproject, starproject } from "../redux/projectslice";
+import { useNavigate } from "react-router-dom";
 
 function ProjectCard({ project }) {
   const [loadingStar, setLoadingStar] = useState(false);
   const [loadingDelete, setLoadingDelete] = useState(false);
-
+  const navigate = useNavigate();
   const dispatch = useDispatch();
-const handletogglestar = async () => {
-  
-  setLoadingStar(true);
+  const handletogglestar = async () => {
+    setLoadingStar(true);
 
-  const data = await togglestar(project?._id);
+    const data = await togglestar(project?._id);
 
-  if (data) {
-    dispatch(starproject(data));
-  }
+    if (data) {
+      dispatch(starproject(data));
+    }
 
-  setLoadingStar(false);
-};
+    setLoadingStar(false);
+  };
 
   const handledelete = async () => {
     setLoadingDelete(true);
@@ -46,6 +46,10 @@ const handletogglestar = async () => {
       }}
       whileHover={{ y: -3 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
+      onClick={() => {
+        dispatch(setcurrentproject(project))
+        navigate(`/project/${project._id}`);
+      }}
       className="group relative cursor-pointer overflow-hidden rounded-2xl border border-black/[0.08] bg-white/70 p-5 shadow-sm backdrop-blur-xl transition-all duration-200 hover:shadow-lg dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.06]"
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/10 to-transparent dark:via-white/20" />
@@ -56,10 +60,7 @@ const handletogglestar = async () => {
         whileTap={{ scale: 0.9 }}
         className={`absolute right-4 top-4 transition-colors hover:text-yellow-500 disabled:opacity-50 ${project?.starred ? "text-yellow-500" : "text-zinc-400"}`}
       >
-        <Star
-  size={18}
-  fill={project?.starred ? "currentColor" : "none"}
-/>
+        <Star size={18} fill={project?.starred ? "currentColor" : "none"} />
       </motion.button>
 
       <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
@@ -77,8 +78,6 @@ const handletogglestar = async () => {
       >
         {loadingDelete ? "Deleting..." : "Delete"}
       </button>
-
-      
     </motion.div>
   );
 }
