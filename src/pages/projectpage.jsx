@@ -1,5 +1,6 @@
 import React from "react";
 import TopBar from "../component/TopBar";
+import ActivityBar from "../component/ActivityBar";
 
 function ProjectPage() {
   return (
@@ -11,7 +12,9 @@ function ProjectPage() {
 
       <TopBar />
 
-      <div className="relative z-10 flex-1">
+      <div className="flex flex-1 overflow-hidden">
+        <ActivityBar/>
+        
       </div>
 
     </div>

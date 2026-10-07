@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
-import { Folder } from "lucide-react";
+import { Code2, Eye, Folder } from "lucide-react";
 import { motion } from "motion/react";
 
 function TopBar() {
@@ -9,7 +9,6 @@ function TopBar() {
 
   return (
     <div className="relative flex h-12 items-center justify-between border-b border-white/[0.06] bg-[#111113]/90 px-4 backdrop-blur-xl">
-
       <div className="flex items-center gap-4">
         <div className="text-[15px] font-semibold tracking-tight text-white">
           codvexa
@@ -30,18 +29,32 @@ function TopBar() {
 
       <div className="flex items-center gap-1.5">
         <motion.button
-          whileHover={{
-            scale: 1.05,
-           
-          }}
+          whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           transition={{ duration: 0.15 }}
           onClick={() => setshowpreview(!showpreview)}
-          className="relative flex items-center justify-center rounded-lg =-2 transition-colors{showpreview"
+          className={`relative flex items-center justify-center rounded-lg p-2 transition-colors ${
+            showpreview
+              ? "bg-white/[0.08] text-white"
+              : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"
+          }`}
         >
+          <motion.div
+            className="absolute inset-0 rounded-lg bg-white/[0.06]"
+            transition={{
+              type: "spring",
+              duration: 0.35,
+              bounce: 0.15,
+            }}
+          />
+
+          {showpreview ? (
+            <Eye size={16} className="relative" />
+          ) : (
+            <Code2 size={16} className="relative" />
+          )}
         </motion.button>
       </div>
-
     </div>
   );
 }
