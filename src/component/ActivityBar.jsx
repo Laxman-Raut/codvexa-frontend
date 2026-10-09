@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import { Bot, Files } from "lucide-react";
+import { Bot, Files, SquareTerminalIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 function ActivityIcon({ icon: Icon, label, active, onClick }) {
   const [hovered, setHovered] = useState(false);
-  
 
   return (
     <div
@@ -25,7 +24,7 @@ function ActivityIcon({ icon: Icon, label, active, onClick }) {
       >
         {active && (
           <motion.div
-            layoutId="activity-active"
+            // layoutId="activity-active"
             className="absolute inset-0 rounded-lg bg-white/[0.06]"
           />
         )}
@@ -50,17 +49,17 @@ function ActivityIcon({ icon: Icon, label, active, onClick }) {
   );
 }
 
-function ActivityBar() {
-  const [showexplorer, setshowExplorer] = useState(false);
+function ActivityBar({ showExplorer, setShowExplorer }) {
   const [showaichat, setShowAichat] = useState(false);
+  const [showTerminal, setshowTerminal] = useState(false);
 
   return (
     <div className="flex w-14 shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#111113] py-3">
       <ActivityIcon
         icon={Files}
         label="Explorer"
-        active={showexplorer}
-        onClick={() => setshowExplorer((v) => !v)}
+        active={showExplorer}
+        onClick={() => setShowExplorer((v) => !v)}
       />
 
       <ActivityIcon
@@ -69,6 +68,17 @@ function ActivityBar() {
         active={showaichat}
         onClick={() => setShowAichat((v) => !v)}
       />
+
+      <div className="mt-auto flex flex-col items-center gap-2">
+        <div className="mb-1 h-px w-6 bg-white/[0.06]" />
+
+        <ActivityIcon
+          icon={SquareTerminalIcon}
+          label="Terminal"
+          active={showTerminal}
+          onClick={() => setshowTerminal((v) => !v)}
+        />
+      </div>
     </div>
   );
 }

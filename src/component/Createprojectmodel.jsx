@@ -5,7 +5,7 @@ import { useDispatch } from "react-redux";
 import { createproject } from "../features/project";
 import { addNewproject } from "../redux/projectslice";
 
-function Createprojectmodel({ openmodel, onclose }) {
+function Createprojectmodel({ openModal, onclose }) {
   const [name, setname] = useState("");
   const [description, setdescription] = useState("");
   const [loading, setloading] = useState(false);
@@ -16,9 +16,11 @@ function Createprojectmodel({ openmodel, onclose }) {
     setloading(true);
 
     const data = await createproject({ name, description });
-    onclose()
 
-    dispatch(addNewproject(data));
+    if (data) {
+      dispatch(addNewproject(data));
+      onclose();
+    }
 
     setloading(false);
   };

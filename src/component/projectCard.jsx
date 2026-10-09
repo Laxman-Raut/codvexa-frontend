@@ -11,7 +11,8 @@ function ProjectCard({ project }) {
   const [loadingDelete, setLoadingDelete] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const handletogglestar = async () => {
+  const handletogglestar = async (e) => {
+    e.stopPropagation();
     setLoadingStar(true);
 
     const data = await togglestar(project?._id);
@@ -23,7 +24,8 @@ function ProjectCard({ project }) {
     setLoadingStar(false);
   };
 
-  const handledelete = async () => {
+  const handledelete = async (e) => {
+    e.stopPropagation();
     setLoadingDelete(true);
 
     const data = await deleteproject(project?._id);
@@ -47,7 +49,7 @@ function ProjectCard({ project }) {
       whileHover={{ y: -3 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
       onClick={() => {
-        dispatch(setcurrentproject(project))
+        
         navigate(`/project/${project._id}`);
       }}
       className="group relative cursor-pointer overflow-hidden rounded-2xl border border-black/[0.08] bg-white/70 p-5 shadow-sm backdrop-blur-xl transition-all duration-200 hover:shadow-lg dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.06]"

@@ -27,17 +27,25 @@ const projectslice = createSlice({
 
     starproject: (state, action) => {
       const project = state.projects.find(
-        (p) => p._id == action.payload._id
+        (p) => p._id === action.payload._id
       );
 
       if (project) {
         project.starred = action.payload.starred;
       }
+
+      const starredProject = state.starredprojects.find(
+        (p) => p._id === action.payload._id
+      );
+
+      if (starredProject) {
+        starredProject.starred = action.payload.starred;
+      }
     },
 
     removeProject: (state, action) => {
       state.projects = state.projects.filter(
-        (p) => p._id != action.payload
+        (p) => p._id !== action.payload
       );
     },
   },
