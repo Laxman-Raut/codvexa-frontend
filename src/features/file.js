@@ -1,4 +1,5 @@
 import { api } from "../utils/axios.js";
+import { buildTree } from "../utils/buildTree.js";
 
 export const createrootFolder = async ({ projectId, projectName }) => {
   try {
@@ -92,9 +93,11 @@ export const getTree = async (projectId) => {
   try {
     const { data } = await api.get(`/api/file/tree/${projectId}`);
 
-    return data;
+    return buildTree(data);
   } catch (error) {
+    // 404 just means no files exist yet — return empty array
+    if (error?.response?.status === 404) return [];
     console.log(error);
-    return null;
+    return [];
   }
 };

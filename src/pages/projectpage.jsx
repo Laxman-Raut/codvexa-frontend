@@ -10,6 +10,7 @@ import Explorer from "../component/Explorer";
 import { setcurrentproject } from "../redux/projectslice";
 import { getTree } from "../features/file";
 import { getprojectById } from "../features/project";
+import { buildTree } from "../utils/buildTree";
 
 function ProjectPage() {
   const { id } = useParams();
@@ -19,7 +20,7 @@ function ProjectPage() {
 
   const loadTree = useCallback(async () => {
     const data = await getTree(id);
-    setTree(data);
+    setTree(buildTree(data));
   }, [id]);
 
   useEffect(() => {
@@ -49,7 +50,7 @@ function ProjectPage() {
         <AnimatePresence initial={false}>
           {showExplorer && (
             <Explorer
-              projectid={id}
+              projectId={id}
               tree={tree}
               reloadTree={loadTree}
             />

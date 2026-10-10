@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { createproject } from "../features/project";
 import { addNewproject } from "../redux/projectslice";
+import { createrootFolder } from "../features/file";
 
 function Createprojectmodel({ openModal, onclose }) {
   const [name, setname] = useState("");
@@ -18,6 +19,7 @@ function Createprojectmodel({ openModal, onclose }) {
     const data = await createproject({ name, description });
 
     if (data) {
+      await createrootFolder({ projectId: data._id, projectName: data.name });
       dispatch(addNewproject(data));
       onclose();
     }
