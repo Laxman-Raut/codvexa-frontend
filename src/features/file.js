@@ -55,7 +55,7 @@ export const createFile = async ({
 
 export const updateFile = async ({ name, content, id }) => {
   try {
-    const { data } = await api.patch(`/api/file/update/${id}`, {
+    const { data } = await api.patch(`/api/file/${id}`, {
       name,
       content,
     });
