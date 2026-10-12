@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   ChevronRight,
-  FileText,
   FolderOpen,
   FolderClosed,
   FilePlus2,
@@ -9,7 +8,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import getFolderColor from "../utils/Customized.icon";
+import { getFileIcon, getFolderColor } from "../utils/Customized.icon";
 import {
   createFile,
   createFolder,
@@ -20,7 +19,11 @@ import ContextMenu from "./ContextMenu";
 import DeleteModal from "./DeleteModal";
 
 function Folder({ node, projectId, reloadTree }) {
-  const [open, setOpen] = useState(false);
+  const isFolder = node?.type !== "file";
+  const isRoot = !node?.parentId;
+
+  // Root folders open by default, nested folders start closed
+  const [open, setOpen] = useState(isRoot);
 
   // Context menu position { x, y } | null
   const [menu, setMenu] = useState(null);
@@ -43,8 +46,11 @@ function Folder({ node, projectId, reloadTree }) {
 
   const [loading, setLoading] = useState(false);
 
-  const isFolder = node?.type !== "file";
   const folderColor = getFolderColor(node?.name);
+  const { Icon: FileIcon, color: fileColor } = getFileIcon(node?.name);
+  // Icon for the "new file" input updates live as the user types (e.g. app.js -> JS logo)
+  const { Icon: NewFileIcon, color: newFileColor } = getFileIcon(fileName);
+
   const hasChildren = node?.children?.length > 0;
   const nodeId = node?._id || node?.id;
 
@@ -52,7 +58,7 @@ function Folder({ node, projectId, reloadTree }) {
   useEffect(() => {
     if (isRenaming && renameInputRef.current) {
       renameInputRef.current.focus();
-      const dotIndex = node.name.lastIndexOf(".");
+      const dotIndex = node?.name?.lastIndexOf(".");
       if (!isFolder && dotIndex > 0) {
         renameInputRef.current.setSelectionRange(0, dotIndex);
       } else {
@@ -61,7 +67,7 @@ function Folder({ node, projectId, reloadTree }) {
     }
   }, [isRenaming, isFolder, node?.name]);
 
-  // ---------- Context Menu Actions ----------
+  // ---------- Context Menu ----------
   const handleContextMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -71,6 +77,8 @@ function Folder({ node, projectId, reloadTree }) {
   // ---------- File Creation ----------
   const startCreatingFile = () => {
     setOpen(true);
+    setCreatingFolder(false);
+    setFolderName("");
     setCreatingFile(true);
     setFileName("");
   };
@@ -84,21 +92,20 @@ function Folder({ node, projectId, reloadTree }) {
     const name = fileName.trim();
     if (!name || loading) return;
 
-    try {
-      setLoading(true);
-      await createFile({ projectId, name, parentId: nodeId });
-      await reloadTree();
-      cancelCreatingFile();
-    } catch (err) {
-      console.error("Failed to create file:", err);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    const result = await createFile({ projectId, name, parentId: nodeId });
+    setLoading(false);
+
+    if (!result) return; // request failed: keep the input open to retry
+    await reloadTree();
+    cancelCreatingFile();
   };
 
   // ---------- Folder Creation ----------
   const startCreatingFolder = () => {
     setOpen(true);
+    setCreatingFile(false);
+    setFileName("");
     setCreatingFolder(true);
     setFolderName("");
   };
@@ -112,20 +119,19 @@ function Folder({ node, projectId, reloadTree }) {
     const name = folderName.trim();
     if (!name || loading) return;
 
-    try {
-      setLoading(true);
-      await createFolder({ projectId, name, parentId: nodeId });
-      await reloadTree();
-      cancelCreatingFolder();
-    } catch (err) {
-      console.error("Failed to create folder:", err);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    const result = await createFolder({ projectId, name, parentId: nodeId });
+    setLoading(false);
+
+    if (!result) return;
+    await reloadTree();
+    cancelCreatingFolder();
   };
 
-  // ---------- Rename Item ----------
+  // ---------- Rename ----------
   const handleRename = async () => {
+    if (loading) return;
+
     const trimmed = renameValue.trim();
     if (!trimmed || trimmed === node?.name) {
       setIsRenaming(false);
@@ -133,32 +139,29 @@ function Folder({ node, projectId, reloadTree }) {
       return;
     }
 
-    try {
-      setLoading(true);
-      await updateFile({ id: nodeId, name: trimmed });
+    setLoading(true);
+    const result = await updateFile({ id: nodeId, name: trimmed });
+    setLoading(false);
+
+    if (result) {
       await reloadTree();
-    } catch (err) {
-      console.error("Failed to rename:", err);
-    } finally {
-      setLoading(false);
-      setIsRenaming(false);
+    } else {
+      setRenameValue(node?.name || ""); // failed: restore old name
     }
+    setIsRenaming(false);
   };
 
-  // ---------- Delete Item ----------
+  // ---------- Delete ----------
   const handleDelete = async () => {
     if (loading) return;
 
-    try {
-      setLoading(true);
-      await deleteFile({ id: nodeId });
-      await reloadTree();
-      setIsDeleting(false);
-    } catch (err) {
-      console.error("Failed to delete item:", err);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    const result = await deleteFile({ id: nodeId });
+    setLoading(false);
+
+    if (!result) return;
+    await reloadTree();
+    setIsDeleting(false);
   };
 
   return (
@@ -196,7 +199,7 @@ function Folder({ node, projectId, reloadTree }) {
               <FolderClosed size={16} className={`shrink-0 ${folderColor}`} />
             )
           ) : (
-            <FileText size={15} className="shrink-0 text-zinc-400" />
+            <FileIcon size={15} className={`shrink-0 ${fileColor}`} />
           )}
 
           {isRenaming ? (
@@ -220,6 +223,10 @@ function Folder({ node, projectId, reloadTree }) {
             <span className="truncate text-[13px] text-zinc-300 transition-colors group-hover:text-white">
               {node?.name}
             </span>
+          )}
+
+          {loading && (
+            <Loader2 size={13} className="shrink-0 animate-spin text-zinc-500" />
           )}
         </div>
 
@@ -252,18 +259,20 @@ function Folder({ node, projectId, reloadTree }) {
         )}
       </motion.div>
 
-      {/* Nested tree children */}
+      {/* Nested children with VS Code style indent guide */}
       <AnimatePresence>
-        {open && isFolder && (hasChildren || creatingFile || creatingFolder) && (
+        {open && isFolder && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden pl-3"
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="relative ml-[7px] overflow-hidden border-l border-white/[0.08] pl-2.5 transition-colors duration-150 hover:border-white/[0.22]"
           >
             {/* New folder inline input */}
             {creatingFolder && (
-              <div className="flex items-center gap-1.5 py-1.5 pl-5">
+              <div className="flex items-center gap-1.5 py-1">
+                <div className="w-3.5 shrink-0" />
                 <FolderClosed size={16} className="shrink-0 text-amber-400" />
                 <input
                   autoFocus
@@ -283,10 +292,11 @@ function Folder({ node, projectId, reloadTree }) {
               </div>
             )}
 
-            {/* New file inline input */}
+            {/* New file inline input (icon changes as you type the extension) */}
             {creatingFile && (
-              <div className="flex items-center gap-1.5 py-1.5 pl-5">
-                <FileText size={15} className="shrink-0 text-sky-400" />
+              <div className="flex items-center gap-1.5 py-1">
+                <div className="w-3.5 shrink-0" />
+                <NewFileIcon size={15} className={`shrink-0 ${newFileColor}`} />
                 <input
                   autoFocus
                   value={fileName}
@@ -305,14 +315,20 @@ function Folder({ node, projectId, reloadTree }) {
               </div>
             )}
 
-            {node.children?.map((child) => (
-              <Folder
-                key={child._id || child.id}
-                node={child}
-                projectId={projectId}
-                reloadTree={reloadTree}
-              />
-            ))}
+            {hasChildren ? (
+              node.children.map((child) => (
+                <Folder
+                  key={child._id || child.id}
+                  node={child}
+                  projectId={projectId}
+                  reloadTree={reloadTree}
+                />
+              ))
+            ) : !creatingFile && !creatingFolder ? (
+              <div className="select-none py-1 pl-5 text-[11px] italic text-zinc-600">
+                Empty folder
+              </div>
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,4 +1,114 @@
-const getFolderColor = (name = "") => {
+import {
+  SiJavascript, SiTypescript, SiReact, SiSass, SiMarkdown, SiPython,
+  SiCplusplus, SiGo, SiRust, SiPhp, SiDocker, SiGit, SiNpm, SiVite,
+  SiEslint, SiPrettier, SiTailwindcss, SiMongodb, SiMysql, SiPostgresql,
+  SiYaml, SiVuedotjs, SiSvelte, SiKotlin, SiSwift, SiRuby, SiGnubash,
+  SiGraphql,
+} from "react-icons/si";
+import { DiCss3, DiHtml5 } from "react-icons/di";
+import { FaJava } from "react-icons/fa";
+import {
+  VscFile, VscFileMedia, VscFilePdf, VscFileZip, VscJson,
+  VscSettingsGear, VscLock, VscDatabase, VscTerminal, VscCode,
+} from "react-icons/vsc";
+// 1) Exact file names (checked first)
+const SPECIAL_FILES = {
+  "package.json": { Icon: SiNpm, color: "text-red-500" },
+  "package-lock.json": { Icon: VscLock, color: "text-red-400" },
+  "yarn.lock": { Icon: VscLock, color: "text-sky-400" },
+  ".gitignore": { Icon: SiGit, color: "text-orange-500" },
+  ".gitattributes": { Icon: SiGit, color: "text-orange-500" },
+  ".env": { Icon: VscSettingsGear, color: "text-yellow-400" },
+  ".env.local": { Icon: VscSettingsGear, color: "text-yellow-400" },
+  ".env.development": { Icon: VscSettingsGear, color: "text-yellow-400" },
+  ".env.production": { Icon: VscSettingsGear, color: "text-yellow-400" },
+  "dockerfile": { Icon: SiDocker, color: "text-sky-500" },
+  "docker-compose.yml": { Icon: SiDocker, color: "text-sky-500" },
+  "docker-compose.yaml": { Icon: SiDocker, color: "text-sky-500" },
+  "vite.config.js": { Icon: SiVite, color: "text-purple-400" },
+  "vite.config.ts": { Icon: SiVite, color: "text-purple-400" },
+  "tailwind.config.js": { Icon: SiTailwindcss, color: "text-cyan-400" },
+  "tailwind.config.ts": { Icon: SiTailwindcss, color: "text-cyan-400" },
+  "tsconfig.json": { Icon: SiTypescript, color: "text-blue-400" },
+  ".eslintrc": { Icon: SiEslint, color: "text-violet-400" },
+  ".eslintrc.json": { Icon: SiEslint, color: "text-violet-400" },
+  "eslint.config.js": { Icon: SiEslint, color: "text-violet-400" },
+  ".prettierrc": { Icon: SiPrettier, color: "text-pink-400" },
+  "readme.md": { Icon: SiMarkdown, color: "text-sky-300" },
+};
+
+// 2) By extension
+const EXTENSIONS = {
+  css:  { Icon: DiCss3, color: "text-blue-500" },
+
+  js: { Icon: SiJavascript, color: "text-yellow-400" },
+  mjs: { Icon: SiJavascript, color: "text-yellow-400" },
+  cjs: { Icon: SiJavascript, color: "text-yellow-400" },
+  jsx: { Icon: SiReact, color: "text-cyan-400" },
+  ts: { Icon: SiTypescript, color: "text-blue-400" },
+  tsx: { Icon: SiReact, color: "text-blue-400" },
+  html: { Icon: DiHtml5, color: "text-orange-500" },
+  scss: { Icon: SiSass, color: "text-pink-400" },
+  sass: { Icon: SiSass, color: "text-pink-400" },
+  json: { Icon: VscJson, color: "text-yellow-300" },
+  md: { Icon: SiMarkdown, color: "text-sky-300" },
+  py: { Icon: SiPython, color: "text-yellow-300" },
+  java: { Icon: FaJava, color: "text-red-400" },
+  c: { Icon: VscCode, color: "text-blue-400" },
+  cpp: { Icon: SiCplusplus, color: "text-blue-500" },
+  h: { Icon: VscCode, color: "text-purple-400" },
+  go: { Icon: SiGo, color: "text-cyan-400" },
+  rs: { Icon: SiRust, color: "text-orange-400" },
+  php: { Icon: SiPhp, color: "text-indigo-400" },
+  rb: { Icon: SiRuby, color: "text-red-500" },
+  kt: { Icon: SiKotlin, color: "text-purple-400" },
+  swift: { Icon: SiSwift, color: "text-orange-500" },
+  vue: { Icon: SiVuedotjs, color: "text-emerald-400" },
+  svelte: { Icon: SiSvelte, color: "text-orange-500" },
+  yml: { Icon: SiYaml, color: "text-red-300" },
+  yaml: { Icon: SiYaml, color: "text-red-300" },
+  sh: { Icon: SiGnubash, color: "text-green-400" },
+  bash: { Icon: SiGnubash, color: "text-green-400" },
+  bat: { Icon: VscTerminal, color: "text-zinc-300" },
+  ps1: { Icon: VscTerminal, color: "text-blue-400" },
+  sql: { Icon: VscDatabase, color: "text-sky-400" },
+  graphql: { Icon: SiGraphql, color: "text-pink-500" },
+  gql: { Icon: SiGraphql, color: "text-pink-500" },
+  mongodb: { Icon: SiMongodb, color: "text-green-500" },
+  mysql: { Icon: SiMysql, color: "text-sky-500" },
+  pgsql: { Icon: SiPostgresql, color: "text-sky-400" },
+  env: { Icon: VscSettingsGear, color: "text-yellow-400" },
+  lock: { Icon: VscLock, color: "text-zinc-400" },
+  png: { Icon: VscFileMedia, color: "text-purple-400" },
+  jpg: { Icon: VscFileMedia, color: "text-purple-400" },
+  jpeg: { Icon: VscFileMedia, color: "text-purple-400" },
+  gif: { Icon: VscFileMedia, color: "text-purple-400" },
+  svg: { Icon: VscFileMedia, color: "text-amber-400" },
+  webp: { Icon: VscFileMedia, color: "text-purple-400" },
+  ico: { Icon: VscFileMedia, color: "text-purple-400" },
+  pdf: { Icon: VscFilePdf, color: "text-red-500" },
+  zip: { Icon: VscFileZip, color: "text-amber-500" },
+  rar: { Icon: VscFileZip, color: "text-amber-500" },
+  tar: { Icon: VscFileZip, color: "text-amber-500" },
+  gz: { Icon: VscFileZip, color: "text-amber-500" },
+  txt: { Icon: VscFile, color: "text-zinc-400" },
+};
+
+const DEFAULT_ICON = { Icon: VscFile, color: "text-zinc-400" };
+
+export const getFileIcon = (name = "") => {
+  const lower = name.toLowerCase().trim();
+
+  // exact name match, e.g. package.json, Dockerfile, .gitignore
+  if (SPECIAL_FILES[lower]) return SPECIAL_FILES[lower];
+
+  // extension match: "App.test.jsx" -> "jsx"
+  const ext = lower.includes(".") ? lower.split(".").pop() : "";
+  return EXTENSIONS[ext] || DEFAULT_ICON;
+};
+
+
+export const getFolderColor = (name = "") => {
   const key = name.toLowerCase();
 
   const map = {

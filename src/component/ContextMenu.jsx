@@ -9,8 +9,8 @@ import {
   Copy,
   Check,
   FolderClosed,
-  FileText,
 } from "lucide-react";
+import { getFileIcon, getFolderColor } from "../utils/Customized.icon";
 
 export default function ContextMenu({
   x,
@@ -110,10 +110,19 @@ export default function ContextMenu({
         {/* Header with node icon and title */}
         <div className="flex items-center gap-1.5 border-b border-white/[0.07] px-2.5 py-1.5 pb-2 text-[11px] font-semibold text-zinc-400">
           {isFolder ? (
-            <FolderClosed size={13} className="shrink-0 text-amber-400/80" />
-          ) : (
-            <FileText size={13} className="shrink-0 text-sky-400/80" />
-          )}
+            <FolderClosed
+              size={13}
+              className={`shrink-0 ${getFolderColor(node?.name)}`}
+            />
+          ) : (() => {
+            const { Icon: FileIcon, color: fileColor } = getFileIcon(node?.name);
+            return (
+              <FileIcon
+                size={13}
+                className={`shrink-0 ${fileColor || "text-zinc-400"}`}
+              />
+            );
+          })()}
           <span className="truncate max-w-[150px] font-mono text-zinc-300">
             {node?.name || "Item"}
           </span>

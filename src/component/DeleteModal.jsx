@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { Trash2, AlertTriangle, Loader2, FolderClosed } from "lucide-react";
+import { getFileIcon, getFolderColor } from "../utils/Customized.icon";
 
 export default function DeleteModal({
   isOpen,
@@ -59,7 +60,13 @@ export default function DeleteModal({
             </h3>
             <p className="mt-1.5 text-xs text-zinc-400 leading-relaxed">
               Are you sure you want to delete{" "}
-              <span className="font-mono text-zinc-200 font-semibold break-all">
+              <span className="inline-flex items-center gap-1 font-mono text-zinc-200 font-semibold break-all">
+                {isFolder ? (
+                  <FolderClosed size={13} className={`shrink-0 ${getFolderColor(node?.name)}`} />
+                ) : (() => {
+                  const { Icon: FileIcon, color: fileColor } = getFileIcon(node?.name);
+                  return <FileIcon size={13} className={`shrink-0 ${fileColor || "text-zinc-400"}`} />;
+                })()}
                 "{node?.name}"
               </span>
               ? {isFolder ? "All files and folders inside will be deleted." : "This action cannot be undone."}
