@@ -1,11 +1,33 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useSelector } from "react-redux";
 import { Code2, Eye, Folder } from "lucide-react";
 import { motion } from "motion/react";
 
-function TopBar() {
+function TopBar({
+  showPreview,
+  setShowPreview,
+  showpreview: propShowPreview,
+  setshowpreview: propSetShowPreview,
+}) {
   const { currentproject } = useSelector((state) => state.project);
-  const [showpreview, setshowpreview] = useState(false);
+  const [localPreview, setLocalPreview] = useState(false);
+
+  const isPreview =
+    showPreview !== undefined
+      ? showPreview
+      : propShowPreview !== undefined
+      ? propShowPreview
+      : localPreview;
+
+  const togglePreview = () => {
+    if (setShowPreview) {
+      setShowPreview(!isPreview);
+    } else if (propSetShowPreview) {
+      propSetShowPreview(!isPreview);
+    } else {
+      setLocalPreview((prev) => !prev);
+    }
+  };
 
   return (
     <div className="relative flex h-12 items-center justify-between border-b border-white/[0.06] bg-[#111113]/90 px-4 backdrop-blur-xl">
@@ -32,10 +54,11 @@ function TopBar() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           transition={{ duration: 0.15 }}
-          onClick={() => setshowpreview(!showpreview)}
+          onClick={togglePreview}
+          title={isPreview ? "Switch to Editor" : "Open Live Preview"}
           className={`relative flex items-center justify-center rounded-lg p-2 transition-colors ${
-            showpreview
-              ? "bg-white/[0.08] text-white"
+            isPreview
+              ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
               : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"
           }`}
         >
@@ -48,8 +71,8 @@ function TopBar() {
             }}
           />
 
-          {showpreview ? (
-            <Eye size={16} className="relative" />
+          {isPreview ? (
+            <Eye size={16} className="relative text-sky-400" />
           ) : (
             <Code2 size={16} className="relative" />
           )}

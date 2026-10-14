@@ -18,9 +18,11 @@ import {
 import ContextMenu from "./ContextMenu";
 import DeleteModal from "./DeleteModal";
 
-function Folder({ node, projectId, reloadTree, openFile, openfile, openfle }) {
+function Folder({ node, projectId, reloadTree, openFile, openfile, openfle, activeTab }) {
   const handleOpenFile = openFile || openfile || openfle;
-  const isFolder = node?.type !== "file";
+  const isFolder =
+    node?.type === "folder" ||
+    (node?.type !== "file" && Array.isArray(node?.children) && node.children.length > 0);
   const isRoot = !node?.parentId;
 
   // Root folders open by default, nested folders start closed
@@ -40,7 +42,6 @@ function Folder({ node, projectId, reloadTree, openFile, openfile, openfle }) {
   // File creation state
   const [creatingFile, setCreatingFile] = useState(false);
   const [fileName, setFileName] = useState("");
-
   // Folder creation state
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [folderName, setFolderName] = useState("");
@@ -94,7 +95,9 @@ function Folder({ node, projectId, reloadTree, openFile, openfile, openfle }) {
     if (!name || loading) return;
 
     setLoading(true);
-    const result = await createFile({ projectId, name, parentId: nodeId });
+    const lang = fileName.split(".").pop()
+    const result = await createFile({ projectId, name, parentId: nodeId ,language:lang});
+    
     setLoading(false);
 
     if (!result) return; // request failed: keep the input open to retry
@@ -168,27 +171,38 @@ function Folder({ node, projectId, reloadTree, openFile, openfile, openfle }) {
     setIsDeleting(false);
   };
 
+  const isFileActive =
+    !isFolder &&
+    Boolean(
+      activeTab &&
+        (((activeTab._id || activeTab.id)?.toString() === nodeId?.toString()) ||
+          activeTab.name === node?.name)
+    );
+
   return (
     <div className="relative select-none">
       <motion.div
         whileHover={{ x: 2 }}
         transition={{ duration: 0.15, ease: "easeInOut" }}
-        className={`group flex items-center justify-between rounded-lg py-1.5 transition-colors hover:bg-white/[0.05] ${
-          menu ? "bg-white/[0.07]" : ""
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isRenaming) return;
+          if (isFolder) {
+            setOpen((prev) => !prev);
+          } else if (handleOpenFile) {
+            handleOpenFile(node);
+          }
+        }}
+        className={`group flex items-center justify-between rounded-lg py-1.5 px-1.5 cursor-pointer transition-all duration-150 ${
+          isFileActive
+            ? "bg-sky-500/15 text-white border-l-2 border-sky-400 font-medium shadow-sm shadow-sky-500/10"
+            : menu
+            ? "bg-white/[0.08]"
+            : "hover:bg-white/[0.05] text-zinc-300 hover:text-white"
         }`}
         onContextMenu={handleContextMenu}
       >
-        <div
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5"
-          onClick={() => {
-            if (isRenaming) return;
-            if (isFolder) {
-              setOpen((prev) => !prev);
-            } else if (handleOpenFile) {
-              handleOpenFile(node);
-            }
-          }}
-        >
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
           {isFolder ? (
             <motion.div
               animate={{ rotate: open ? 90 : 0 }}
@@ -276,7 +290,7 @@ function Folder({ node, projectId, reloadTree, openFile, openfile, openfle }) {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="relative ml-[7px] overflow-hidden border-l border-white/[0.08] pl-2.5 transition-colors duration-150 hover:border-white/[0.22]"
+            className="relative ml-[7px] overflow-hidden border-l border-white/[0.08] pl-2.5 transition-colors duration-150 hover:border-sky-500/40"
           >
             {/* New folder inline input */}
             {creatingFolder && (
@@ -332,6 +346,7 @@ function Folder({ node, projectId, reloadTree, openFile, openfile, openfle }) {
                   projectId={projectId}
                   reloadTree={reloadTree}
                   openFile={handleOpenFile}
+                  activeTab={activeTab}
                 />
               ))
             ) : !creatingFile && !creatingFolder ? (

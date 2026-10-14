@@ -8,7 +8,7 @@ import ActivityBar from "../component/ActivityBar";
 import Explorer from "../component/Explorer";
 
 import { setcurrentproject } from "../redux/projectslice";
-import { getTree } from "../features/file";
+import { getTree, getFile } from "../features/file";
 import { getprojectById } from "../features/project";
 import { buildTree } from "../utils/buildTree";
 import { Code2, Eye, Maximize2, Minimize2, X } from "lucide-react";
@@ -43,16 +43,37 @@ function ProjectPage() {
     loadTree();
   }, [id, dispatch, loadTree]);
 
-  const openFile = (file) => {
+  const openFile = async (file) => {
     if (!file) return;
-    const fileId = file._id || file.id || file.name;
+    const fileId = (file._id || file.id)?.toString() || file.name;
     const exist = openTabs.find(
-      (tab) => (tab._id || tab.id || tab.name) === fileId
+      (tab) => ((tab._id || tab.id)?.toString() || tab.name) === fileId
     );
-    if (!exist) {
-      setOpenTabs((prev) => [...prev, file]);
+
+    let targetFile = exist || file;
+
+    // If content is undefined and we have an ID, load full file data
+    if (targetFile.content === undefined && (targetFile._id || targetFile.id)) {
+      try {
+        const full = await getFile({ id: targetFile._id || targetFile.id });
+        if (full) {
+          targetFile = { ...targetFile, ...full };
+        }
+      } catch (err) {
+        console.error("Error loading file content:", err);
+      }
     }
-    setActiveTab(file);
+
+    if (!exist) {
+      setOpenTabs((prev) => [...prev, targetFile]);
+    } else {
+      setOpenTabs((prev) =>
+        prev.map((t) =>
+          ((t._id || t.id)?.toString() || t.name) === fileId ? targetFile : t
+        )
+      );
+    }
+    setActiveTab(targetFile);
     setShowPreview(false);
   };
 
@@ -76,7 +97,7 @@ function ProjectPage() {
         <div className="absolute -top-48 left-1/2 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-white/[0.03] blur-[200px]" />
       </div>
 
-      <TopBar />
+      <TopBar showPreview={showPreview} setShowPreview={setShowPreview} />
 
       <div className="flex flex-1 overflow-hidden">
         <ActivityBar
@@ -93,6 +114,7 @@ function ProjectPage() {
               openFile={openFile}
               openfile={openFile}
               openfle={openfle}
+              activeTab={activeTab}
             />
           )}
         </AnimatePresence>
@@ -245,7 +267,14 @@ function ProjectPage() {
           {/* Main workspace view (Editor or Preview) */}
           <div className="flex min-h-0 flex-1 overflow-hidden">
             {showPreview ? (
-              <Preview tree={tree} />
+              <Preview
+                tree={tree}
+                openTabs={openTabs}
+                activeTab={activeTab}
+                onClose={() => setShowPreview(false)}
+                isFullscreen={isPreviewfullscreen}
+                setIsFullscreen={setisPreviewfullscreen}
+              />
             ) : (
               <Editor
                 file={activeTab}
