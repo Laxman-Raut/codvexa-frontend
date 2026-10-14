@@ -18,7 +18,8 @@ import {
 import ContextMenu from "./ContextMenu";
 import DeleteModal from "./DeleteModal";
 
-function Folder({ node, projectId, reloadTree }) {
+function Folder({ node, projectId, reloadTree, openFile, openfile, openfle }) {
+  const handleOpenFile = openFile || openfile || openfle;
   const isFolder = node?.type !== "file";
   const isRoot = !node?.parentId;
 
@@ -99,6 +100,9 @@ function Folder({ node, projectId, reloadTree }) {
     if (!result) return; // request failed: keep the input open to retry
     await reloadTree();
     cancelCreatingFile();
+    if (handleOpenFile && result) {
+      handleOpenFile({ ...result, parentName: node?.name });
+    }
   };
 
   // ---------- Folder Creation ----------
@@ -177,7 +181,12 @@ function Folder({ node, projectId, reloadTree }) {
         <div
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5"
           onClick={() => {
-            if (isFolder && !isRenaming) setOpen((prev) => !prev);
+            if (isRenaming) return;
+            if (isFolder) {
+              setOpen((prev) => !prev);
+            } else if (handleOpenFile) {
+              handleOpenFile(node);
+            }
           }}
         >
           {isFolder ? (
@@ -322,6 +331,7 @@ function Folder({ node, projectId, reloadTree }) {
                   node={child}
                   projectId={projectId}
                   reloadTree={reloadTree}
+                  openFile={handleOpenFile}
                 />
               ))
             ) : !creatingFile && !creatingFolder ? (

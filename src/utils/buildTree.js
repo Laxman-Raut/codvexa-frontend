@@ -43,6 +43,7 @@ export const buildTree = (files = []) => {
 
     if (parentId && map.has(parentId)) {
       const parent = map.get(parentId);
+      node.parentName = parent.name;
       const childExists = parent.children.some(
         (child) => (child._id || child.id)?.toString() === id
       );

@@ -200,7 +200,6 @@ export const getFolderColor = (name = "") => {
     monitoring: "text-amber-300",
     metrics: "text-orange-300",
     security: "text-rose-300",
-    docs: "text-slate-300",
     ".github": "text-slate-300",
     ".vscode": "text-sky-300",
     ".husky": "text-orange-300",
