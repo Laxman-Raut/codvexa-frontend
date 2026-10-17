@@ -76,6 +76,235 @@ const getLanguageFromFilename = (filename = "") => {
   return map[ext] || "plaintext";
 };
 
+// Setup Monaco languages, compiler options, and rich IntelliSense autocomplete suggestions
+const setupMonacoLanguageProviders = (monaco) => {
+  if (typeof window === "undefined" || window.__codvexaMonacoConfigured) return;
+  window.__codvexaMonacoConfigured = true;
+
+  try {
+    // 1. TypeScript & JavaScript Compiler Options for complete IntelliSense & JSX
+    if (monaco.languages.typescript) {
+      monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      });
+
+      monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ESNext,
+        allowNonTextExtensions: true,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        module: monaco.languages.typescript.ModuleKind.CommonJS,
+        noEmit: true,
+        esModuleInterop: true,
+        jsx: monaco.languages.typescript.JsxEmit.React,
+        reactNamespace: "React",
+        allowJs: true,
+        checkJs: false,
+      });
+
+      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ESNext,
+        allowNonTextExtensions: true,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        module: monaco.languages.typescript.ModuleKind.CommonJS,
+        noEmit: true,
+        esModuleInterop: true,
+        jsx: monaco.languages.typescript.JsxEmit.React,
+        reactNamespace: "React",
+        allowJs: true,
+      });
+    }
+
+    // 2. HTML language options
+    if (monaco.languages.html) {
+      monaco.languages.html.htmlDefaults.setOptions({
+        suggest: { html5: true },
+        format: { tabSize: 2, insertSpaces: true },
+      });
+    }
+
+    // 3. CSS language options
+    if (monaco.languages.css) {
+      monaco.languages.css.cssDefaults.setOptions({
+        validate: true,
+        lint: { validProperties: [] },
+      });
+    }
+
+    // 4. Register rich HTML tag and attribute completions
+    monaco.languages.registerCompletionItemProvider("html", {
+      triggerCharacters: ["<", " ", ":", "/", ">", "."],
+      provideCompletionItems: (model, position) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        };
+
+        const htmlTags = [
+          { label: "div", snippet: '<div class="$1">$0</div>', doc: "Generic container block" },
+          { label: "span", snippet: '<span class="$1">$0</span>', doc: "Inline text container" },
+          { label: "p", snippet: '<p>$0</p>', doc: "Paragraph element" },
+          { label: "h1", snippet: '<h1>$0</h1>', doc: "Top-level heading" },
+          { label: "h2", snippet: '<h2>$0</h2>', doc: "Heading level 2" },
+          { label: "h3", snippet: '<h3>$0</h3>', doc: "Heading level 3" },
+          { label: "h4", snippet: '<h4>$0</h4>', doc: "Heading level 4" },
+          { label: "button", snippet: '<button type="button" class="$1">$0</button>', doc: "Clickable button" },
+          { label: "input", snippet: '<input type="${1:text}" placeholder="$2" class="$3" />', doc: "Input field" },
+          { label: "form", snippet: '<form action="$1" method="${2:POST}">\n  $0\n</form>', doc: "Form element" },
+          { label: "a", snippet: '<a href="$1" target="_blank">$0</a>', doc: "Hyperlink anchor" },
+          { label: "img", snippet: '<img src="$1" alt="$2" class="$3" />', doc: "Image element" },
+          { label: "ul", snippet: '<ul>\n  <li>$0</li>\n</ul>', doc: "Unordered list" },
+          { label: "ol", snippet: '<ol>\n  <li>$0</li>\n</ol>', doc: "Ordered list" },
+          { label: "li", snippet: '<li>$0</li>', doc: "List item" },
+          { label: "section", snippet: '<section class="$1">\n  $0\n</section>', doc: "Thematic section" },
+          { label: "header", snippet: '<header class="$1">\n  $0\n</header>', doc: "Page or section header" },
+          { label: "footer", snippet: '<footer class="$1">\n  $0\n</footer>', doc: "Page or section footer" },
+          { label: "nav", snippet: '<nav class="$1">\n  $0\n</nav>', doc: "Navigation links container" },
+          { label: "main", snippet: '<main class="$1">\n  $0\n</main>', doc: "Dominant content section" },
+          { label: "script", snippet: '<script src="$1"></script>', doc: "External script" },
+          { label: "script:inline", snippet: '<script>\n  $0\n</script>', doc: "Inline script" },
+          { label: "style", snippet: '<style>\n  $0\n</style>', doc: "Internal CSS style sheet" },
+          { label: "link:css", snippet: '<link rel="stylesheet" href="${1:style.css}">', doc: "CSS stylesheet link" },
+          { label: "meta:viewport", snippet: '<meta name="viewport" content="width=device-width, initial-scale=1.0">', doc: "Viewport meta tag" },
+          { label: "table", snippet: '<table class="$1">\n  <thead>\n    <tr>\n      <th>$2</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td>$0</td>\n    </tr>\n  </tbody>\n</table>', doc: "HTML Table" },
+          { label: "html:5", snippet: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>${1:Document}</title>\n  <link rel="stylesheet" href="style.css">\n</head>\n<body>\n  $0\n  <script src="script.js"></script>\n</body>\n</html>', doc: "HTML5 Boilerplate template" },
+        ];
+
+        const htmlAttrs = [
+          { label: "class", snippet: 'class="$1"', doc: "CSS class names" },
+          { label: "id", snippet: 'id="$1"', doc: "Element unique ID" },
+          { label: "style", snippet: 'style="$1"', doc: "Inline CSS styles" },
+          { label: "src", snippet: 'src="$1"', doc: "Source URL" },
+          { label: "href", snippet: 'href="$1"', doc: "Destination hyperlink" },
+          { label: "alt", snippet: 'alt="$1"', doc: "Alternative text description" },
+          { label: "type", snippet: 'type="${1:text}"', doc: "Input or button type" },
+          { label: "placeholder", snippet: 'placeholder="$1"', doc: "Placeholder text" },
+          { label: "value", snippet: 'value="$1"', doc: "Input element value" },
+          { label: "name", snippet: 'name="$1"', doc: "Form field name" },
+          { label: "target", snippet: 'target="_blank"', doc: "Link target" },
+          { label: "rel", snippet: 'rel="noopener noreferrer"', doc: "Link relationship" },
+          { label: "onclick", snippet: 'onclick="$1"', doc: "Click event handler" },
+          { label: "disabled", snippet: 'disabled', doc: "Disabled attribute" },
+          { label: "required", snippet: 'required', doc: "Required field attribute" },
+        ];
+
+        const suggestions = [];
+
+        htmlTags.forEach((tag) => {
+          suggestions.push({
+            label: tag.label,
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: tag.snippet,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            detail: "HTML Element",
+            documentation: tag.doc,
+            range,
+          });
+        });
+
+        htmlAttrs.forEach((attr) => {
+          suggestions.push({
+            label: attr.label,
+            kind: monaco.languages.CompletionItemKind.Property,
+            insertText: attr.snippet,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            detail: "HTML Attribute",
+            documentation: attr.doc,
+            range,
+          });
+        });
+
+        return { suggestions };
+      },
+    });
+
+    // 5. Register rich CSS property and value completions
+    monaco.languages.registerCompletionItemProvider("css", {
+      triggerCharacters: [":", " ", "-", "!", ";"],
+      provideCompletionItems: (model, position) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        };
+
+        const cssSnippets = [
+          { label: "display: flex", snippet: "display: flex;\njustify-content: ${1:center};\nalign-items: ${2:center};$0", doc: "Flexbox layout" },
+          { label: "display: grid", snippet: "display: grid;\ngrid-template-columns: repeat(${1:3}, 1fr);\ngap: ${2:1rem};$0", doc: "Grid layout" },
+          { label: "margin: auto", snippet: "margin: 0 auto;$0", doc: "Horizontal auto centering" },
+          { label: "box-sizing: border-box", snippet: "box-sizing: border-box;$0", doc: "Border-box sizing" },
+          { label: "transition: all", snippet: "transition: all ${1:0.2s} ease;$0", doc: "Smooth CSS transition" },
+          { label: "transform: translate", snippet: "transform: translate(${1:-50%}, ${2:-50%});$0", doc: "CSS transform translate" },
+          { label: "border-radius", snippet: "border-radius: ${1:8px};$0", doc: "Border radius" },
+          { label: "box-shadow", snippet: "box-shadow: 0 ${1:4px} ${2:12px} rgba(0, 0, 0, ${3:0.1});$0", doc: "Drop shadow" },
+        ];
+
+        return {
+          suggestions: cssSnippets.map((s) => ({
+            label: s.label,
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: s.snippet,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            detail: "CSS Snippet",
+            documentation: s.doc,
+            range,
+          })),
+        };
+      },
+    });
+
+    // 6. Register rich JavaScript / JSX snippets
+    monaco.languages.registerCompletionItemProvider("javascript", {
+      triggerCharacters: [".", " ", "(", "{", "=", ">"],
+      provideCompletionItems: (model, position) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        };
+
+        const jsSnippets = [
+          { label: "console.log", snippet: "console.log($1);$0", doc: "Log message to console" },
+          { label: "console.error", snippet: "console.error($1);$0", doc: "Log error to console" },
+          { label: "document.querySelector", snippet: "document.querySelector('${1:selector}');$0", doc: "Find first DOM element" },
+          { label: "document.querySelectorAll", snippet: "document.querySelectorAll('${1:selector}');$0", doc: "Find all DOM elements" },
+          { label: "document.getElementById", snippet: "document.getElementById('${1:id}');$0", doc: "Find element by ID" },
+          { label: "addEventListener", snippet: "addEventListener('${1:click}', (${2:e}) => {\n  $0\n});", doc: "Attach event listener" },
+          { label: "fetch", snippet: "fetch('${1:/api}')\n  .then(res => res.json())\n  .then(data => {\n    $0\n  })\n  .catch(err => console.error(err));", doc: "Fetch HTTP API" },
+          { label: "async function", snippet: "async function ${1:name}($2) {\n  $0\n}", doc: "Asynchronous function declaration" },
+          { label: "arrow function", snippet: "const ${1:name} = ($2) => {\n  $0\n};", doc: "Arrow function expression" },
+          { label: "setTimeout", snippet: "setTimeout(() => {\n  $0\n}, ${1:1000});", doc: "Execute callback after delay" },
+          { label: "setInterval", snippet: "setInterval(() => {\n  $0\n}, ${1:1000});", doc: "Execute callback repeatedly" },
+          { label: "import React", snippet: "import React, { useState, useEffect } from 'react';$0", doc: "Import React hooks" },
+          { label: "useState", snippet: "const [${1:state}, set${1/(.*)/${1:/capitalize}/}] = useState(${2:initialState});$0", doc: "React useState hook" },
+          { label: "useEffect", snippet: "useEffect(() => {\n  $0\n}, [${1}]);", doc: "React useEffect hook" },
+        ];
+
+        return {
+          suggestions: jsSnippets.map((s) => ({
+            label: s.label,
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: s.snippet,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            detail: "JavaScript / React",
+            documentation: s.doc,
+            range,
+          })),
+        };
+      },
+    });
+  } catch (err) {
+    console.error("Monaco language setup error:", err);
+  }
+};
+
 // Component for an active file session (keyed by file ID so state resets cleanly on file switch)
 function FileEditorSession({
   activeTab,
@@ -172,6 +401,9 @@ function FileEditorSession({
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+
+    // Initialize Monaco language defaults & IntelliSense providers
+    setupMonacoLanguageProviders(monaco);
 
     // Track cursor and selection position for status bar
     editor.onDidChangeCursorPosition((e) => {
@@ -311,6 +543,7 @@ function FileEditorSession({
       <div className="relative flex-1 overflow-hidden bg-[#1e1e1e]">
         <MonacoEditor
           height="100%"
+          path={activeTab?.name || "untitled"}
           language={language}
           theme="vs-dark"
           value={code}
@@ -326,15 +559,45 @@ function FileEditorSession({
             tabSize: 2,
             wordWrap: "on",
             quickSuggestions: {
-              other: true,
-              comments: true,
-              strings: true,
+              other: "on",
+              comments: "on",
+              strings: "on",
             },
             suggestOnTriggerCharacters: true,
             acceptSuggestionOnEnter: "on",
+            acceptSuggestionOnCommitCharacter: true,
             tabCompletion: "on",
+            wordBasedSuggestions: "allDocuments",
+            snippetSuggestions: "top",
+            suggest: {
+              showWords: true,
+              showSnippets: true,
+              showClasses: true,
+              showFunctions: true,
+              showVariables: true,
+              showConstants: true,
+              showMethods: true,
+              showProperties: true,
+              showFields: true,
+              showEvents: true,
+              showOperators: true,
+              showUnits: true,
+              showValues: true,
+              showKeywords: true,
+              showColors: true,
+              showFiles: true,
+              showReferences: true,
+              showFolders: true,
+              showTypeParameters: true,
+              showModules: true,
+              snippetsPreventQuickSuggestions: false,
+              localityBonus: true,
+              shareSuggestSelections: true,
+              preview: true,
+              previewMode: "prefix",
+              showIcons: true,
+            },
             parameterHints: { enabled: true },
-            snippetSuggestions: "inline",
             bracketPairColorization: { enabled: true },
             formatOnPaste: true,
             cursorBlinking: "smooth",
@@ -345,7 +608,7 @@ function FileEditorSession({
           }}
           loading={
             <div className="flex h-full w-full items-center justify-center bg-[#1e1e1e] text-zinc-500">
-              <Loader2 size={24} className="animate-spin text-sky-400" />
+              <Loader2 size={24} className="animate-spin text-zinc-400" />
               <span className="ml-2 text-xs text-zinc-400">Loading IntelliSense Editor...</span>
             </div>
           }
@@ -358,7 +621,7 @@ function FileEditorSession({
           <span>
             Ln {cursorPos.line}, Col {cursorPos.col}
             {cursorPos.selectionLength > 0 && (
-              <span className="ml-1 text-sky-400/90">
+              <span className="ml-1 text-zinc-300">
                 ({cursorPos.selectionLength} selected)
               </span>
             )}
@@ -438,8 +701,8 @@ function Editor({
   if (!activeTab) {
     return (
       <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-[#0d0d11]">
-        <div className="pointer-events-none absolute -top-24 h-96 w-96 rounded-full bg-sky-500/[0.04] blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 h-96 w-96 rounded-full bg-indigo-500/[0.04] blur-3xl" />
+        <div className="pointer-events-none absolute -top-24 h-96 w-96 rounded-full bg-white/[0.02] blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 h-96 w-96 rounded-full bg-white/[0.02] blur-3xl" />
 
         <div className="relative z-10 flex flex-col items-center px-6 text-center">
           <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.02] shadow-xl backdrop-blur-xl">
@@ -447,7 +710,7 @@ function Editor({
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-0 rounded-2xl border border-sky-500/20"
+              className="absolute inset-0 rounded-2xl border border-white/10"
             />
           </div>
 
@@ -465,7 +728,7 @@ function Editor({
             <span className="flex items-center gap-1 rounded-md border border-white/[0.06] bg-white/[0.03] px-2.5 py-1">
               <kbd className="font-mono text-zinc-400">Tab</kbd> Autocomplete
             </span>
-            <span className="flex items-center gap-1 rounded-md border border-white/[0.06] bg-white/[0.03] px-2.5 py-1 text-emerald-400/80">
+            <span className="flex items-center gap-1 rounded-md border border-white/[0.06] bg-white/[0.03] px-2.5 py-1 text-zinc-400">
               <Sparkles size={11} /> Auto-save 15s
             </span>
           </div>

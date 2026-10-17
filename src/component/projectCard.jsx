@@ -52,31 +52,31 @@ function ProjectCard({ project }) {
         
         navigate(`/project/${project._id}`);
       }}
-      className="group relative cursor-pointer overflow-hidden rounded-2xl border border-black/[0.08] bg-white/70 p-5 shadow-sm backdrop-blur-xl transition-all duration-200 hover:shadow-lg dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.06]"
+      className="group relative cursor-pointer overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/70 p-5 shadow-xs backdrop-blur-xl transition-all duration-200 hover:border-zinc-300 hover:bg-white hover:shadow-md dark:border-white/[0.08] dark:bg-white/[0.02] dark:hover:border-white/20 dark:hover:bg-white/[0.05] dark:hover:shadow-lg"
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/10 to-transparent dark:via-white/20" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-white/10" />
 
       <motion.button
         onClick={handletogglestar}
         disabled={loadingStar}
         whileTap={{ scale: 0.9 }}
-        className={`absolute right-4 top-4 transition-colors hover:text-yellow-500 disabled:opacity-50 ${project?.starred ? "text-yellow-500" : "text-zinc-400"}`}
+        className={`absolute right-3.5 top-3.5 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl transition-colors hover:text-zinc-900 disabled:opacity-50 dark:hover:text-white ${project?.starred ? "text-amber-500" : "text-zinc-400"}`}
       >
-        <Star size={18} fill={project?.starred ? "currentColor" : "none"} />
+        <Star size={17} fill={project?.starred ? "currentColor" : "none"} />
       </motion.button>
 
-      <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
+      <h3 className="pr-8 text-sm font-semibold text-zinc-900 dark:text-white">
         {project?.name}
       </h3>
 
-      <p className="mt-2 line-clamp-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
         {project?.description || "No description"}
       </p>
 
       <button
         onClick={handledelete}
         disabled={loadingDelete}
-        className="mt-4 text-xs text-red-500 hover:text-red-600 disabled:opacity-50"
+        className="mt-4 inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-zinc-400 transition-colors hover:text-red-500 disabled:opacity-50 dark:text-zinc-500 dark:hover:text-red-400"
       >
         {loadingDelete ? "Deleting..." : "Delete"}
       </button>

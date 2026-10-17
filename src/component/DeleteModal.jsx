@@ -79,7 +79,7 @@ export default function DeleteModal({
             type="button"
             disabled={loading}
             onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+            className="cursor-pointer rounded-xl px-3.5 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
           >
             Cancel
           </button>
@@ -88,7 +88,7 @@ export default function DeleteModal({
             type="button"
             disabled={loading}
             onClick={onConfirm}
-            className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-rose-500 disabled:opacity-50"
+            className="flex cursor-pointer items-center gap-1.5 rounded-xl bg-red-600 px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
           >
             {loading ? (
               <>

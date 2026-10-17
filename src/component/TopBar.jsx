@@ -58,7 +58,7 @@ function TopBar({
           title={isPreview ? "Switch to Editor" : "Open Live Preview"}
           className={`relative flex items-center justify-center rounded-lg p-2 transition-colors ${
             isPreview
-              ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
+              ? "bg-white/10 text-white border border-white/15"
               : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"
           }`}
         >
@@ -72,7 +72,7 @@ function TopBar({
           />
 
           {isPreview ? (
-            <Eye size={16} className="relative text-sky-400" />
+            <Eye size={16} className="relative text-white" />
           ) : (
             <Code2 size={16} className="relative" />
           )}

@@ -143,7 +143,7 @@ export default function ContextMenu({
                 <div className="flex items-center gap-2">
                   <FilePlus2
                     size={14}
-                    className="text-zinc-400 transition-colors group-hover:text-sky-400"
+                    className="text-zinc-400 transition-colors group-hover:text-white"
                   />
                   <span>New File</span>
                 </div>
@@ -161,7 +161,7 @@ export default function ContextMenu({
                 <div className="flex items-center gap-2">
                   <FolderPlus
                     size={14}
-                    className="text-zinc-400 transition-colors group-hover:text-amber-400"
+                    className="text-zinc-400 transition-colors group-hover:text-white"
                   />
                   <span>New Folder</span>
                 </div>

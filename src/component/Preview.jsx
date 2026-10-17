@@ -404,7 +404,7 @@ function Preview({
             title="Toggle Console"
             className={`relative flex items-center gap-1 rounded-lg border border-white/[0.08] px-2 py-1 text-xs font-medium transition-colors ${
               showConsole
-                ? "bg-sky-500/15 text-sky-300 border-sky-500/30"
+                ? "bg-white/10 text-white border-white/20"
                 : "bg-white/[0.03] text-zinc-400 hover:bg-white/[0.06] hover:text-white"
             }`}
           >
@@ -474,7 +474,7 @@ function Preview({
               No Previewable Files Found
             </h4>
             <p className="mt-1 max-w-sm text-xs text-zinc-500">
-              Create an <code className="text-sky-400 font-mono">index.html</code>, JavaScript, or CSS file in the explorer to see live preview.
+              Create an <code className="text-zinc-300 font-mono">index.html</code>, JavaScript, or CSS file in the explorer to see live preview.
             </p>
           </div>
         )}

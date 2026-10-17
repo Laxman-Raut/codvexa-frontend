@@ -195,7 +195,7 @@ function Folder({ node, projectId, reloadTree, openFile, openfile, openfle, acti
         }}
         className={`group flex items-center justify-between rounded-lg py-1.5 px-1.5 cursor-pointer transition-all duration-150 ${
           isFileActive
-            ? "bg-sky-500/15 text-white border-l-2 border-sky-400 font-medium shadow-sm shadow-sky-500/10"
+            ? "bg-white/10 text-white border-l-2 border-white font-medium"
             : menu
             ? "bg-white/[0.08]"
             : "hover:bg-white/[0.05] text-zinc-300 hover:text-white"
@@ -240,7 +240,7 @@ function Folder({ node, projectId, reloadTree, openFile, openfile, openfle, acti
               }}
               onBlur={handleRename}
               onClick={(e) => e.stopPropagation()}
-              className="w-full rounded bg-white/10 px-1.5 py-0.5 text-[13px] text-white outline-none ring-1 ring-sky-500/70"
+              className="w-full rounded bg-white/10 px-1.5 py-0.5 text-[13px] text-white outline-none ring-1 ring-white/40"
             />
           ) : (
             <span className="truncate text-[13px] text-zinc-300 transition-colors group-hover:text-white">
@@ -290,7 +290,7 @@ function Folder({ node, projectId, reloadTree, openFile, openfile, openfle, acti
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="relative ml-[7px] overflow-hidden border-l border-white/[0.08] pl-2.5 transition-colors duration-150 hover:border-sky-500/40"
+            className="relative ml-[7px] overflow-hidden border-l border-white/[0.08] pl-2.5 transition-colors duration-150 hover:border-white/20"
           >
             {/* New folder inline input */}
             {creatingFolder && (
@@ -310,7 +310,7 @@ function Folder({ node, projectId, reloadTree, openFile, openfile, openfle, acti
                     if (!folderName.trim()) cancelCreatingFolder();
                   }}
                   placeholder="Folder name"
-                  className="w-full rounded bg-white/10 px-1.5 py-0.5 text-[13px] text-white outline-none ring-1 ring-amber-500/50 placeholder:text-zinc-500"
+                  className="w-full rounded bg-white/10 px-1.5 py-0.5 text-[13px] text-white outline-none ring-1 ring-white/30 placeholder:text-zinc-500"
                 />
               </div>
             )}
@@ -333,7 +333,7 @@ function Folder({ node, projectId, reloadTree, openFile, openfile, openfle, acti
                     if (!fileName.trim()) cancelCreatingFile();
                   }}
                   placeholder="File name"
-                  className="w-full rounded bg-white/10 px-1.5 py-0.5 text-[13px] text-white outline-none ring-1 ring-sky-500/50 placeholder:text-zinc-500"
+                  className="w-full rounded bg-white/10 px-1.5 py-0.5 text-[13px] text-white outline-none ring-1 ring-white/30 placeholder:text-zinc-500"
                 />
               </div>
             )}

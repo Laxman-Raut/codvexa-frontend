@@ -15,6 +15,8 @@ import { Code2, Eye, Maximize2, Minimize2, X } from "lucide-react";
 import { getFileIcon } from "../utils/Customized.icon";
 import Preview from "../component/Preview";
 import Editor from "../component/Editor";
+import BottomPanel from "../component/bottompanel";
+import AiChat from "../component/AiChat";
 
 function ProjectPage() {
   const { id } = useParams();
@@ -26,6 +28,7 @@ function ProjectPage() {
   const [tree, setTree] = useState([]);
   const [openTabs, setOpenTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
+  const [showBpttomPanel , setShowBottomPanel]= useState(false)
   const dispatch = useDispatch();
 
   const loadTree = useCallback(async () => {
@@ -103,6 +106,10 @@ function ProjectPage() {
         <ActivityBar
           showExplorer={showExplorer}
           setShowExplorer={setShowExplorer}
+          showTerminal={showBpttomPanel}
+          setShowTerminal={setShowBottomPanel}
+          showAiChat={showAiChat}
+          setShowAiChat={setShowAiChat}
         />
 
         <AnimatePresence initial={false}>
@@ -147,7 +154,7 @@ function ProjectPage() {
                     }}
                     className={`group flex h-full cursor-pointer items-center gap-2 border-r border-white/[0.06] px-3 text-xs transition-colors ${
                       isActive
-                        ? "border-t-2 border-t-sky-500 bg-[#18181b] text-white"
+                        ? "border-t-2 border-t-white bg-[#18181b] text-white font-medium"
                         : "border-t-2 border-t-transparent bg-[#111113]/50 text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
                     }`}
                   >
@@ -288,7 +295,29 @@ function ProjectPage() {
               />
             )}
           </div>
+
+          <AnimatePresence>
+            {showBpttomPanel &&(
+              <div className="max-h-[45vh] md:max-h-none">
+                <BottomPanel
+                projectId={id}/>
+
+              </div>
+            )}
+          </AnimatePresence>
         </div>
+<div className="w-full md:flex md:w-auto">
+
+<AnimatePresence  initial={false}>
+{showAiChat &&(
+  <AiChat
+  projectId/>
+)}
+
+</AnimatePresence>
+
+</div>
+
       </div>
     </div>
   );

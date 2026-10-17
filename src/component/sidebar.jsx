@@ -4,18 +4,19 @@ import { Folder, Star } from "lucide-react";
 
 function Sidebar({ activesession, setActivesession }) {
   return (
-    <div className="flex h-full w-64 shrink-0 flex-col border-r border-slate-200/70 bg-white/60 px-3 py-5 font-sans backdrop-blur-xl transition-colors duration-300 dark:border-white/[0.06] dark:bg-white/[0.02]">
+    <div className="flex h-full w-64 shrink-0 flex-col border-r border-zinc-200/80 bg-white/70 px-3.5 py-6 font-sans backdrop-blur-xl transition-colors duration-300 dark:border-white/[0.08] dark:bg-[#09090b]/60">
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1.5">
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <motion.div
-            whileTap={{ scale: 0.97 }}
+            whileHover={{ x: 3 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setActivesession("projects")}
-            className={`flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
               activesession === "projects"
-                ? "bg-slate-200/70 text-slate-900 dark:bg-white/[0.08] dark:text-white"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.05]"
+                ? "bg-zinc-900 text-white shadow-xs dark:bg-white/[0.08] dark:text-white"
+                : "text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.05] dark:hover:text-white"
             }`}
           >
             <Folder
@@ -23,16 +24,17 @@ function Sidebar({ activesession, setActivesession }) {
               strokeWidth={2}
               className="relative"
             />
-            <span>projects</span>
+            <span className="capitalize">projects</span>
           </motion.div>
 
           <motion.div
-            whileTap={{ scale: 0.97 }}
+            whileHover={{ x: 3 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setActivesession("starred")}
-            className={`flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
               activesession === "starred"
-                ? "bg-slate-200/70 text-slate-900 dark:bg-white/[0.08] dark:text-white"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.05]"
+                ? "bg-zinc-900 text-white shadow-xs dark:bg-white/[0.08] dark:text-white"
+                : "text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.05] dark:hover:text-white"
             }`}
           >
             <Star
@@ -40,24 +42,30 @@ function Sidebar({ activesession, setActivesession }) {
               strokeWidth={2}
               className="relative"
             />
-            <span>starred</span>
+            <span className="capitalize">starred</span>
           </motion.div>
         </div>
 
-        <div className="my-4 h-px bg-slate-200/70 dark:bg-white/[0.06]"></div>
+        <div className="my-4 h-px bg-zinc-200/80 dark:bg-white/[0.08]"></div>
 
-        <div className="rounded-xl border border-slate-200/70 bg-white/70 p-3.5 shadow-sm backdrop-blur-xl dark:border-white/[0.07] dark:bg-white/[0.03] dark:shadow-none">
-          <p className="text-sm font-medium text-slate-900 dark:text-white">
-            Upgrade plan
-          </p>
+        <div className="group relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-zinc-50/60 p-4 shadow-xs backdrop-blur-xl transition-all duration-300 hover:border-zinc-300 dark:border-white/[0.08] dark:bg-white/[0.02] dark:hover:border-white/15">
+          <div className="relative">
+            <span className="inline-block rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-300">
+              Pro Plan
+            </span>
 
-          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-            Unlock more features and build without limits.
-          </p>
+            <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-white">
+              Upgrade workspace
+            </p>
 
-          <button className="mt-3 w-full rounded-lg bg-slate-900 px-3 py-2 text-xs font-medium text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200">
-            Upgrade
-          </button>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+              Unlock unlimited AI projects, cloud hosting, and premium speed.
+            </p>
+
+            <button className="mt-3.5 flex w-full cursor-pointer items-center justify-center rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:bg-zinc-800 hover:shadow-md active:translate-y-0 active:scale-98 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200">
+              Upgrade Now
+            </button>
+          </div>
         </div>
 
       </div>
