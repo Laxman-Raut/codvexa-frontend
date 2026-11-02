@@ -8,22 +8,29 @@ import {
   Square,
   RotateCcw,
 } from "lucide-react";
+import { chat } from "../features/aiApi"; // adjust the path to where you saved aiApi.js
 
 // ------------------------------------------------------------------
-// BACKEND HOOK: replace the body of this function when your API is ready.
-// Must return the assistant reply as a string. Throw an Error on failure.
+// Connected to the backend chat API.
+// Returns the assistant reply as a string. Throws an Error on failure.
 // ------------------------------------------------------------------
 const askAI = async ({ messages, projectId, signal }) => {
-  await new Promise((resolve, reject) => {
-    const t = setTimeout(resolve, 1200);
-    signal?.addEventListener("abort", () => {
-      clearTimeout(t);
-      reject(new DOMException("Aborted", "AbortError"));
-    });
+  const last = messages[messages.length - 1];
+
+  // Backend expects { role, content } for history, and the new message separately
+  const history = messages
+    .slice(0, -1)
+    .filter((m) => !m.error)
+    .map((m) => ({ role: m.role, content: m.text }));
+
+  const reply = await chat({
+    projectId,
+    message: last.text,
+    history,
+    signal,
   });
 
-  const last = messages[messages.length - 1]?.text || "";
-  return `This is a placeholder reply. You asked:\n\n"${last}"\n\nHere's a sample code block:\n\n\`\`\`js\nconsole.log("Hello from Codvexa AI");\n\`\`\`\n\nThe real answer will appear here once the backend is connected.`;
+  return reply || "Done.";
 };
 
 const SUGGESTIONS = [
