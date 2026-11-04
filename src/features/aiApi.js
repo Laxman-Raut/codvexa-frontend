@@ -1,7 +1,38 @@
-
 import { api } from "../utils/axios.js";
 
-export const chat = async ({ projectId, message, history = [], signal }) => {
+/**
+ * chat({ projectId, message, history, signal, onEvent })
+ *
+ * Streams SSE from /api/ai/chat and fires onEvent for every
+ * real-time tool action the AI performs, so the UI can render
+ * live file/folder change badges.
+ *
+ * onEvent is called with:
+ *   { type: "tool_start",    tool, args }
+ *   { type: "file_created",  file }
+ *   { type: "file_updated",  file }
+ *   { type: "file_deleted",  file }
+ *   { type: "folder_created",folder }
+ *   { type: "tool_error",    tool, error }
+ */
+
+const TOOL_EVENTS = new Set([
+  "tool_start",
+  "file_created",
+  "file_updated",
+  "file_deleted",
+  "folder_created",
+  "tool_error",
+  "tool_result",
+]);
+
+export const chat = async ({
+  projectId,
+  message,
+  history = [],
+  signal,
+  onEvent,
+}) => {
   const response = await fetch(
     `${api.defaults.baseURL || ""}/api/ai/chat`,
     {
@@ -49,7 +80,6 @@ export const chat = async ({ projectId, message, history = [], signal }) => {
     if (!dataLine || dataLine === "[DONE]") return false;
 
     let data;
-
     try {
       data = JSON.parse(dataLine);
     } catch {
@@ -60,13 +90,18 @@ export const chat = async ({ projectId, message, history = [], signal }) => {
       throw new Error(data.message || "Something went wrong");
     }
 
+    // Forward every tool-related event to the UI callback
+    if (TOOL_EVENTS.has(event) && typeof onEvent === "function") {
+      onEvent({ type: event, ...data });
+    }
+
     if (event === "message") {
       finalMessage += data.content || "";
     }
 
     if (event === "done") {
       finalMessage = data.message || finalMessage;
-      return true;
+      return true; // signal stream end
     }
 
     return false;

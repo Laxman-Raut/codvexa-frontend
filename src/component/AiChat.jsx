@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import {
   Send,
@@ -7,20 +8,112 @@ import {
   Check,
   Square,
   RotateCcw,
+  FileMinus,
+  FolderPlus,
+  FilePlus2,
+  FilePen,
+  Loader2,
 } from "lucide-react";
-import { chat } from "../features/aiApi"; // adjust the path to where you saved aiApi.js
+import { chat } from "../features/aiApi";
 
 // ------------------------------------------------------------------
-// Connected to the backend chat API.
-// Returns the assistant reply as a string. Throws an Error on failure.
+// Map every SSE event type → icon / colour / label shown in the badge
 // ------------------------------------------------------------------
-const askAI = async ({ messages, projectId, signal }) => {
+const TOOL_META = {
+  // AI is about to call a tool — shown while waiting for the result
+  tool_start: {
+    icon: Loader2,
+    color: "text-zinc-400",
+    spin: true,
+    label: (data) => {
+      const labels = {
+        create_file: "Creating file…",
+        create_folder: "Creating folder…",
+        update_file: "Updating file…",
+        delete_file: "Deleting file…",
+        get_file: "Reading file…",
+        get_tree: "Reading project tree…",
+      };
+      return labels[data.tool] || `Running ${data.tool}…`;
+    },
+    detail: (data) =>
+      data.args?.name || data.args?.fileId || null,
+  },
+
+  folder_created: {
+    icon: FolderPlus,
+    color: "text-sky-400",
+    label: () => "Created folder",
+    detail: (data) => data.folder?.name || null,
+  },
+  file_created: {
+    icon: FilePlus2,
+    color: "text-emerald-400",
+    label: () => "Created file",
+    detail: (data) => data.file?.name || null,
+  },
+  file_updated: {
+    icon: FilePen,
+    color: "text-amber-400",
+    label: () => "Updated file",
+    detail: (data) => data.file?.name || null,
+  },
+  file_deleted: {
+    icon: FileMinus,
+    color: "text-red-400",
+    label: () => "Deleted file",
+    detail: (data) => data.file?.name || null,
+  },
+  tool_error: {
+    icon: FileMinus,
+    color: "text-red-400",
+    label: (data) => `Tool failed: ${data.tool || "unknown"}`,
+    detail: (data) => data.error || null,
+  },
+};
+
+// ------------------------------------------------------------------
+// Real-time activity badge rendered for each tool SSE event
+// ------------------------------------------------------------------
+const ToolBadge = ({ eventType, data }) => {
+  const meta = TOOL_META[eventType];
+  if (!meta) return null;
+
+  const Icon = meta.icon;
+  const label = typeof meta.label === "function" ? meta.label(data) : meta.label;
+  const detail = typeof meta.detail === "function" ? meta.detail(data) : null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -6 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.2 }}
+      className="flex items-center gap-2 rounded-md border border-white/[0.07] bg-white/[0.03] px-2.5 py-1.5 text-[11px]"
+    >
+      <Icon
+        size={12}
+        className={`${meta.color} ${meta.spin ? "animate-spin" : ""}`}
+      />
+      <span className={`font-medium ${meta.color}`}>{label}</span>
+      {detail && (
+        <span className="max-w-[140px] truncate font-mono text-zinc-500">
+          {detail}
+        </span>
+      )}
+    </motion.div>
+  );
+};
+
+// ------------------------------------------------------------------
+// askAI — calls chat() and routes every SSE event to the UI
+// ------------------------------------------------------------------
+const askAI = async ({ messages, projectId, signal, onToolEvent }) => {
   const last = messages[messages.length - 1];
 
-  // Backend expects { role, content } for history, and the new message separately
+  // Build history from only real user/assistant turns (skip tool badges)
   const history = messages
+    .filter((m) => (m.role === "user" || m.role === "assistant") && !m.error)
     .slice(0, -1)
-    .filter((m) => !m.error)
     .map((m) => ({ role: m.role, content: m.text }));
 
   const reply = await chat({
@@ -28,11 +121,19 @@ const askAI = async ({ messages, projectId, signal }) => {
     message: last.text,
     history,
     signal,
+    onEvent: (eventData) => {
+      if (typeof onToolEvent === "function") {
+        onToolEvent(eventData);
+      }
+    },
   });
 
   return reply || "Done.";
 };
 
+// ------------------------------------------------------------------
+// Suggestion chips shown in the empty state
+// ------------------------------------------------------------------
 const SUGGESTIONS = [
   "Create a React login page",
   "Add an Express route for users",
@@ -43,7 +144,7 @@ let idCounter = 0;
 const newId = () => `${Date.now()}-${idCounter++}`;
 
 // ------------------------------------------------------------------
-// Codvexa logo mark (inline SVG, transparent, animatable)
+// Codvexa logo mark
 // ------------------------------------------------------------------
 function LogoMark({ width = 120, gradId = "cvx-grad", animated = true }) {
   const draw = {
@@ -63,9 +164,7 @@ function LogoMark({ width = 120, gradId = "cvx-grad", animated = true }) {
   };
 
   const motionProps = (variants, i) =>
-    animated
-      ? { variants, custom: i, initial: "hidden", animate: "show" }
-      : {};
+    animated ? { variants, custom: i, initial: "hidden", animate: "show" } : {};
 
   return (
     <svg
@@ -81,8 +180,6 @@ function LogoMark({ width = 120, gradId = "cvx-grad", animated = true }) {
           <stop offset="100%" stopColor="#7dd3fc" />
         </linearGradient>
       </defs>
-
-      {/* "<" and ">" brackets */}
       <motion.polyline
         points="140,68 32,198 140,330"
         stroke={`url(#${gradId})`}
@@ -99,8 +196,6 @@ function LogoMark({ width = 120, gradId = "cvx-grad", animated = true }) {
         strokeLinejoin="round"
         {...motionProps(draw, 1)}
       />
-
-      {/* Slash / X shapes */}
       <motion.polygon
         points="418,8 475,8 187,390 131,390"
         fill={`url(#${gradId})`}
@@ -134,24 +229,18 @@ const PARTICLES = Array.from({ length: 14 }, (_, i) => ({
 
 function AnimatedBackground() {
   const reduce = useReducedMotion();
-
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {/* Grid */}
       <div
         className="absolute inset-0 opacity-[0.35]"
         style={{
           backgroundImage:
             "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
           backgroundSize: "24px 24px",
-          maskImage:
-            "radial-gradient(ellipse at center, black 30%, transparent 75%)",
-          WebkitMaskImage:
-            "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+          maskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
         }}
       />
-
-      {/* Drifting glow orbs */}
       <motion.div
         className="absolute -left-10 top-10 h-44 w-44 rounded-full bg-sky-500/10 blur-3xl"
         animate={reduce ? undefined : { x: [0, 40, 0], y: [0, 30, 0] }}
@@ -162,8 +251,6 @@ function AnimatedBackground() {
         animate={reduce ? undefined : { x: [0, -40, 0], y: [0, -30, 0] }}
         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
       />
-
-      {/* Big faint logo watermark */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <motion.div
           animate={
@@ -184,8 +271,6 @@ function AnimatedBackground() {
           <LogoMark width={300} gradId="cvx-grad-bg" animated={false} />
         </motion.div>
       </div>
-
-      {/* Floating particles */}
       {!reduce &&
         PARTICLES.map((p) => (
           <motion.span
@@ -193,22 +278,18 @@ function AnimatedBackground() {
             className="absolute bottom-0 rounded-full bg-sky-300/40"
             style={{ left: p.left, width: p.size, height: p.size }}
             animate={{ y: [0, -520], x: [0, p.drift], opacity: [0, 0.7, 0] }}
-            transition={{
-              duration: p.duration,
-              delay: p.delay,
-              repeat: Infinity,
-              ease: "linear",
-            }}
+            transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: "linear" }}
           />
         ))}
     </div>
   );
 }
 
-// ---------- Code block with copy button ----------
+// ------------------------------------------------------------------
+// Code block with copy button
+// ------------------------------------------------------------------
 function CodeBlock({ lang, code }) {
   const [copied, setCopied] = useState(false);
-
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code);
@@ -218,7 +299,6 @@ function CodeBlock({ lang, code }) {
       console.error("Copy failed:", err);
     }
   };
-
   return (
     <div className="my-2 overflow-hidden rounded-md border border-white/[0.08] bg-black/40">
       <div className="flex items-center justify-between border-b border-white/[0.06] px-2.5 py-1">
@@ -241,22 +321,18 @@ function CodeBlock({ lang, code }) {
   );
 }
 
-// ---------- Splits text on ``` fences ----------
+// ------------------------------------------------------------------
+// Renders assistant text, splitting on ``` fences
+// ------------------------------------------------------------------
 function MessageContent({ text }) {
   const parts = [];
   const regex = /```(\w*)\n?([\s\S]*?)```/g;
   let last = 0;
   let match;
-
   while ((match = regex.exec(text)) !== null) {
-    if (match.index > last) {
+    if (match.index > last)
       parts.push({ type: "text", value: text.slice(last, match.index) });
-    }
-    parts.push({
-      type: "code",
-      lang: match[1],
-      value: match[2].replace(/\n$/, ""),
-    });
+    parts.push({ type: "code", lang: match[1], value: match[2].replace(/\n$/, "") });
     last = regex.lastIndex;
   }
   if (last < text.length) parts.push({ type: "text", value: text.slice(last) });
@@ -287,7 +363,16 @@ function TypingDots() {
   );
 }
 
-function AiChat({ projectId }) {
+// ------------------------------------------------------------------
+// Main component
+// ------------------------------------------------------------------
+function AiChat({ projectId, onToolEvent }) {
+  const { id: paramId } = useParams();
+  const activeProjectId =
+    typeof projectId === "string" && projectId.trim() && projectId !== "true"
+      ? projectId
+      : paramId;
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -296,7 +381,7 @@ function AiChat({ projectId }) {
   const textareaRef = useRef(null);
   const abortRef = useRef(null);
 
-  // Auto-scroll on new messages
+  // Auto-scroll
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
@@ -304,7 +389,7 @@ function AiChat({ projectId }) {
     });
   }, [messages, isLoading]);
 
-  // Auto-grow textarea (max 120px)
+  // Auto-grow textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -312,7 +397,7 @@ function AiChat({ projectId }) {
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   }, [input]);
 
-  // Cancel any pending request on unmount
+  // Abort on unmount
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const requestReply = async (history) => {
@@ -323,9 +408,34 @@ function AiChat({ projectId }) {
     try {
       const reply = await askAI({
         messages: history,
-        projectId,
+        projectId: activeProjectId,
         signal: controller.signal,
+
+        // ── This fires for EVERY tool SSE event the backend sends ──
+        // The badge is appended to the message list immediately,
+        // so the user sees each file action as it happens.
+        onToolEvent: ({ type, ...data }) => {
+          // Skip purely informational read events (get_tree / get_file)
+          // so the chat stays clean — only show write operations.
+          if (type === "tool_start") {
+            const readOnlyTools = new Set(["get_tree", "get_file"]);
+            if (readOnlyTools.has(data.tool)) return;
+          }
+          if (type === "tool_result") return; // internal; not useful for the user
+
+          // Update the chat message list with a live badge
+          setMessages((prev) => [
+            ...prev,
+            { id: newId(), role: "tool", eventType: type, data },
+          ]);
+
+          // Notify the parent (ProjectPage) so it can refresh the explorer tree
+          if (typeof onToolEvent === "function") {
+            onToolEvent({ type, ...data });
+          }
+        },
       });
+
       setMessages((prev) => [
         ...prev,
         { id: newId(), role: "assistant", text: reply },
@@ -351,7 +461,6 @@ function AiChat({ projectId }) {
   const handleSend = (override) => {
     const text = (override ?? input).trim();
     if (!text || isLoading) return;
-
     const userMsg = { id: newId(), role: "user", text };
     const history = [...messages, userMsg];
     setMessages(history);
@@ -363,7 +472,10 @@ function AiChat({ projectId }) {
 
   const handleRetry = () => {
     if (isLoading) return;
-    const history = messages.filter((m) => !m.error);
+    // Strip tool badges + error messages; keep only real conversation turns
+    const history = messages.filter(
+      (m) => m.role !== "tool" && !m.error
+    );
     setMessages(history);
     requestReply(history);
   };
@@ -380,7 +492,7 @@ function AiChat({ projectId }) {
     <div className="relative flex h-full w-80 shrink-0 flex-col overflow-hidden border-l border-white/[0.06] bg-[#0f0f12]">
       <AnimatedBackground />
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="relative z-10 flex h-10 shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#111113]/70 px-3 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <LogoMark width={24} gradId="cvx-grad-header" animated={false} />
@@ -400,12 +512,13 @@ function AiChat({ projectId }) {
         )}
       </div>
 
-      {/* Messages */}
+      {/* ── Message area ── */}
       <div
         ref={scrollRef}
         className="relative z-10 flex-1 overflow-y-auto p-3 text-zinc-300"
       >
         {messages.length === 0 ? (
+          /* Empty state */
           <div className="flex h-full flex-col items-center justify-center gap-5">
             <motion.div
               animate={{ y: [0, -6, 0] }}
@@ -441,41 +554,59 @@ function AiChat({ projectId }) {
             </div>
           </div>
         ) : (
-          <div className="space-y-3">
+          /* Message list */
+          <div className="space-y-2">
             <AnimatePresence initial={false}>
-              {messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className={`flex flex-col ${
-                    msg.role === "user" ? "items-end" : "items-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-[90%] rounded-lg px-2.5 py-2 text-xs leading-relaxed backdrop-blur-sm ${
-                      msg.role === "user"
-                        ? "bg-sky-500/15 text-white"
-                        : msg.error
-                        ? "border border-red-500/30 bg-red-500/10 text-red-300"
-                        : "bg-white/[0.05] text-zinc-300"
+              {messages.map((msg) => {
+                // ── Tool activity badge ──
+                if (msg.role === "tool") {
+                  return (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <ToolBadge eventType={msg.eventType} data={msg.data} />
+                    </motion.div>
+                  );
+                }
+
+                // ── User / assistant message ──
+                return (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className={`flex flex-col ${
+                      msg.role === "user" ? "items-end" : "items-start"
                     }`}
                   >
-                    <MessageContent text={msg.text} />
-                  </div>
-
-                  {msg.error && (
-                    <button
-                      type="button"
-                      onClick={handleRetry}
-                      className="mt-1 flex items-center gap-1 text-[11px] text-zinc-500 transition-colors hover:text-white"
+                    <div
+                      className={`max-w-[90%] rounded-lg px-2.5 py-2 text-xs leading-relaxed backdrop-blur-sm ${
+                        msg.role === "user"
+                          ? "bg-sky-500/15 text-white"
+                          : msg.error
+                          ? "border border-red-500/30 bg-red-500/10 text-red-300"
+                          : "bg-white/[0.05] text-zinc-300"
+                      }`}
                     >
-                      <RotateCcw size={11} /> Retry
-                    </button>
-                  )}
-                </motion.div>
-              ))}
+                      <MessageContent text={msg.text} />
+                    </div>
+
+                    {msg.error && (
+                      <button
+                        type="button"
+                        onClick={handleRetry}
+                        className="mt-1 flex items-center gap-1 text-[11px] text-zinc-500 transition-colors hover:text-white"
+                      >
+                        <RotateCcw size={11} /> Retry
+                      </button>
+                    )}
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
 
             {isLoading && (
@@ -489,7 +620,7 @@ function AiChat({ projectId }) {
         )}
       </div>
 
-      {/* Input */}
+      {/* ── Input ── */}
       <div className="relative z-10 border-t border-white/[0.06] bg-[#111113]/70 p-3 backdrop-blur-md">
         <div className="flex items-end gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] p-2 transition-colors focus-within:border-sky-400/40">
           <textarea

@@ -18,6 +18,14 @@ import Editor from "../component/Editor";
 import BottomPanel from "../component/bottompanel";
 import AiChat from "../component/AiChat";
 
+// Tool events that should trigger an explorer refresh
+const TREE_REFRESH_EVENTS = new Set([
+  "file_created",
+  "file_updated",
+  "file_deleted",
+  "folder_created",
+]);
+
 function ProjectPage() {
   const { id } = useParams();
   const [showExplorer, setShowExplorer] = useState(false);
@@ -308,12 +316,18 @@ function ProjectPage() {
         </div>
 <div className="w-full md:flex md:w-auto">
 
-<AnimatePresence  initial={false}>
-{showAiChat &&(
+<AnimatePresence initial={false}>
+{showAiChat && (
   <AiChat
-  projectId/>
+    projectId={id}
+    onToolEvent={(event) => {
+      // Auto-refresh the explorer whenever the AI creates / updates / deletes a file or folder
+      if (TREE_REFRESH_EVENTS.has(event.type)) {
+        loadTree();
+      }
+    }}
+  />
 )}
-
 </AnimatePresence>
 
 </div>
