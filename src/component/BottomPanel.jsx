@@ -1,361 +1,315 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { useParams } from "react-router-dom";
 import { motion } from "motion/react";
-import { TerminalSquare, X, Trash2, GripHorizontal } from "lucide-react";
+import {
+  Terminal as TerminalIcon,
+  Plus,
+  X,
+  Trash2,
+  RefreshCw,
+  Maximize2,
+  Minimize2,
+  GripHorizontal,
+} from "lucide-react";
+import TerminalInstance from "./TerminalInstance";
+import { me } from "../features/login";
 
 const MIN_H = 140;
-const MAX_H = 600;
 
-const HELP = [
-  "Available commands:",
-  "  help            show this message",
-  "  ls [path]       list files and folders",
-  "  cd <path>       change directory (supports .. and /)",
-  "  pwd             print current directory",
-  "  cat <file>      show file content",
-  "  echo <text>     print text",
-  "  date            show current date and time",
-  "  whoami          show current user",
-  "  history         show command history",
-  "  clear           clear the terminal (or press Ctrl+L)",
-];
+function BottomPanel({
+  projectId: propProjectId,
+  projectName: propProjectName,
+  onClose,
+}) {
+  const { id: paramProjectId } = useParams();
+  const projectId = propProjectId || paramProjectId;
 
-function BottomPanel({ onClose, tree = [], projectName = "project", user = "dev" }) {
-  const [height, setHeight] = useState(256);
-  const [dragging, setDragging] = useState(false);
+  const { userdata } = useSelector((state) => state.user);
+  const { currentproject } = useSelector((state) => state.project);
 
-  const [lines, setLines] = useState([
-    { type: "info", text: `${projectName} terminal. Type "help" to see commands.` },
+  const projectName = propProjectName || currentproject?.name || "project";
+
+  const reduxUserId = userdata?.userId || userdata?._id || userdata?.id;
+  const [fetchedUserId, setFetchedUserId] = useState("");
+  const resolvedUserId = reduxUserId ? String(reduxUserId) : fetchedUserId;
+
+  // Fallback: If user is not yet in Redux, retrieve from auth
+  useEffect(() => {
+    if (reduxUserId) return;
+
+    let isMounted = true;
+    me()
+      .then((data) => {
+        if (!isMounted || !data) return;
+        const uid = data.userId || data._id || data.id;
+        if (uid) setFetchedUserId(String(uid));
+      })
+      .catch((err) => {
+        console.warn("Could not fetch user info for terminal:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [reduxUserId]);
+
+  const [height, setHeight] = useState(280);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [prevHeight, setPrevHeight] = useState(280);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Multi-terminal tabs
+  const [tabs, setTabs] = useState([
+    { id: "term-1", title: "Terminal 1", status: "connecting" },
   ]);
-  const [input, setInput] = useState("");
-  const [history, setHistory] = useState([]);
-  const [histIdx, setHistIdx] = useState(-1);
-  const [cwd, setCwd] = useState([]); // array of folder names from root
+  const [activeTabId, setActiveTabId] = useState("term-1");
 
-  const inputRef = useRef(null);
-  const scrollRef = useRef(null);
+  // Keep references to terminal instances to invoke clear, reconnect, etc.
+  const instanceRefs = useRef(new Map());
 
-  // Virtual root built from the tree prop (array or single node)
-  const root = useMemo(() => {
-    const children = Array.isArray(tree) ? tree : tree ? [tree] : [];
-    return { name: "", type: "folder", children };
-  }, [tree]);
-
-  // ---------- Path helpers ----------
-  const getNode = (names) => {
-    let node = root;
-    for (const n of names) {
-      node = node?.children?.find((c) => c.name === n && c.type !== "file")
-        ?? node?.children?.find((c) => c.name === n);
-      if (!node) return null;
-    }
-    return node;
+  const addTab = () => {
+    const nextNum = tabs.length + 1;
+    const newId = `term-${Date.now()}`;
+    const newTab = {
+      id: newId,
+      title: `Terminal ${nextNum}`,
+      status: "connecting",
+    };
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newId);
   };
 
-  const resolve = (arg = "") => {
-    let parts = arg.startsWith("/") || arg.startsWith("~") ? [] : [...cwd];
-    for (const seg of arg.replace(/^~/, "").split("/").filter(Boolean)) {
-      if (seg === ".") continue;
-      if (seg === "..") parts.pop();
-      else parts.push(seg);
-    }
-    return parts;
-  };
-
-  const promptPath = cwd.length ? "~/" + cwd.join("/") : "~";
-
-  // ---------- Commands ----------
-  const run = (raw) => {
-    const [cmd, ...args] = raw.trim().split(/\s+/);
-    const arg = args.join(" ");
-    const out = (text, type = "output") => ({ type, text });
-
-    switch (cmd) {
-      case "help":
-        return HELP.map((t) => out(t));
-
-      case "clear":
-        return "CLEAR";
-
-      case "pwd":
-        return [out("/" + cwd.join("/"))];
-
-      case "whoami":
-        return [out(user)];
-
-      case "date":
-        return [out(new Date().toString())];
-
-      case "echo":
-        return [out(arg)];
-
-      case "history":
-        return history.length
-          ? history.map((h, i) => out(`${String(i + 1).padStart(3)}  ${h}`))
-          : [out("No history yet")];
-
-      case "ls": {
-        const target = getNode(resolve(arg));
-        if (!target) return [out(`ls: cannot access '${arg}': No such file or directory`, "error")];
-        if (target.type === "file") return [out(target.name)];
-        const items = target.children || [];
-        if (!items.length) return [out("(empty)", "muted")];
-        return [
-          {
-            type: "list",
-            items: [...items].sort(
-              (a, b) => (a.type === "file") - (b.type === "file") || a.name.localeCompare(b.name)
-            ),
-          },
-        ];
-      }
-
-      case "cd": {
-        if (!arg) {
-          setCwd([]);
-          return [];
-        }
-        const names = resolve(arg);
-        const target = getNode(names);
-        if (!target) return [out(`cd: no such file or directory: ${arg}`, "error")];
-        if (target.type === "file") return [out(`cd: not a directory: ${arg}`, "error")];
-        setCwd(names);
-        return [];
-      }
-
-      case "cat": {
-        if (!arg) return [out("cat: missing file name", "error")];
-        const target = getNode(resolve(arg));
-        if (!target) return [out(`cat: ${arg}: No such file or directory`, "error")];
-        if (target.type !== "file") return [out(`cat: ${arg}: Is a directory`, "error")];
-        const content = target.content;
-        if (!content) return [out("(empty file)", "muted")];
-        return content.split("\n").map((t) => out(t));
-      }
-
-      default:
-        return [out(`${cmd}: command not found. Type "help" for a list of commands.`, "error")];
-    }
-  };
-
-  const submit = () => {
-    const raw = input.trim();
-    const echoLine = { type: "input", text: raw, path: promptPath };
-
-    if (!raw) {
-      setLines((l) => [...l, echoLine]);
+  const closeTab = (e, tabIdToClose) => {
+    e.stopPropagation();
+    if (tabs.length <= 1) {
+      onClose?.();
       return;
     }
 
-    setHistory((h) => [...h, raw]);
-    setHistIdx(-1);
-    setInput("");
+    const nextTabs = tabs.filter((t) => t.id !== tabIdToClose);
+    instanceRefs.current.delete(tabIdToClose);
+    setTabs(nextTabs);
 
-    const result = run(raw);
-    if (result === "CLEAR") {
-      setLines([]);
-      return;
-    }
-    setLines((l) => [...l, echoLine, ...result]);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      submit();
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (!history.length) return;
-      const next = histIdx === -1 ? history.length - 1 : Math.max(0, histIdx - 1);
-      setHistIdx(next);
-      setInput(history[next]);
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (histIdx === -1) return;
-      const next = histIdx + 1;
-      if (next >= history.length) {
-        setHistIdx(-1);
-        setInput("");
-      } else {
-        setHistIdx(next);
-        setInput(history[next]);
-      }
-    } else if (e.key === "l" && e.ctrlKey) {
-      e.preventDefault();
-      setLines([]);
-    } else if (e.key === "c" && e.ctrlKey) {
-      e.preventDefault();
-      setLines((l) => [...l, { type: "input", text: input + "^C", path: promptPath }]);
-      setInput("");
-      setHistIdx(-1);
-    } else if (e.key === "Tab") {
-      e.preventDefault();
-      autocomplete();
+    if (activeTabId === tabIdToClose) {
+      setActiveTabId(nextTabs[nextTabs.length - 1].id);
     }
   };
 
-  // Tab completion for the last word
-  const autocomplete = () => {
-    const words = input.split(" ");
-    const last = words.pop() || "";
-    const slash = last.lastIndexOf("/");
-    const dirPart = slash >= 0 ? last.slice(0, slash + 1) : "";
-    const namePart = slash >= 0 ? last.slice(slash + 1) : last;
-    const dir = getNode(resolve(dirPart));
-    const matches = (dir?.children || []).filter((c) => c.name.startsWith(namePart));
-    if (matches.length === 1) {
-      const m = matches[0];
-      setInput([...words, dirPart + m.name + (m.type !== "file" ? "/" : "")].join(" "));
+  const handleStatusChange = (tabId, status, message) => {
+    setTabs((prev) =>
+      prev.map((t) => (t.id === tabId ? { ...t, status, message } : t))
+    );
+  };
+
+  const handleClear = () => {
+    const activeRef = instanceRefs.current.get(activeTabId);
+    activeRef?.clear();
+  };
+
+  const handleReconnect = () => {
+    const activeRef = instanceRefs.current.get(activeTabId);
+    activeRef?.reconnect();
+  };
+
+  const toggleMaximize = () => {
+    if (isMaximized) {
+      setHeight(prevHeight);
+      setIsMaximized(false);
+    } else {
+      setPrevHeight(height);
+      const maxH = Math.max(MIN_H, Math.floor(window.innerHeight * 0.75));
+      setHeight(maxH);
+      setIsMaximized(true);
     }
   };
 
-  // ---------- Resize by dragging the top edge ----------
+  // Drag-to-resize handle on top edge
   const startDrag = (e) => {
     e.preventDefault();
-    setDragging(true);
+    setIsDragging(true);
     const startY = e.clientY;
     const startH = height;
 
-    const onMove = (ev) => {
-      const next = startH + (startY - ev.clientY);
-      setHeight(Math.min(MAX_H, Math.max(MIN_H, next)));
+    const onPointerMove = (ev) => {
+      const delta = startY - ev.clientY;
+      const maxH = Math.max(MIN_H, Math.floor(window.innerHeight * 0.88));
+      const nextH = Math.min(maxH, Math.max(MIN_H, startH + delta));
+      setHeight(nextH);
+      setIsMaximized(false);
     };
-    const onUp = () => {
-      setDragging(false);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+
+    const onPointerUp = () => {
+      setIsDragging(false);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
     };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
   };
 
-  // Auto-scroll to the bottom on new output
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [lines, input]);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  const userName = userdata?.name || "dev";
 
   return (
     <motion.div
       initial={{ height: 0, opacity: 0 }}
       animate={{ height, opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
-      transition={dragging ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
-      className="relative flex shrink-0 flex-col overflow-hidden border-t border-white/[0.06] bg-[#0d0d0f]"
+      transition={
+        isDragging ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }
+      }
+      className="relative flex shrink-0 flex-col overflow-hidden border-t border-white/[0.08] bg-[#0c0c0e] shadow-2xl"
     >
-      {/* Drag handle */}
+      {/* Top drag handle */}
       <div
         onPointerDown={startDrag}
-        className="group absolute inset-x-0 top-0 z-10 flex h-1.5 cursor-row-resize items-center justify-center"
+        className="group absolute inset-x-0 top-0 z-20 flex h-1.5 cursor-row-resize items-center justify-center select-none"
+        title="Drag to resize terminal panel"
       >
-        <div className="h-px w-full bg-transparent transition-colors group-hover:bg-sky-500/60" />
+        <div className="h-0.5 w-full bg-transparent transition-colors group-hover:bg-sky-500/80 group-active:bg-sky-500" />
         <GripHorizontal
           size={12}
           className="absolute text-zinc-600 opacity-0 transition-opacity group-hover:opacity-100"
         />
       </div>
 
-      {/* Header */}
-      <div className="flex h-9 shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#111113] px-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-red-500/80" />
-            <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/80" />
-            <span className="h-2.5 w-2.5 rounded-full bg-green-500/80" />
+      {/* Dock Bar / Terminal Header */}
+      <div className="flex h-9 shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#111113] px-2.5">
+        {/* Left side: Terminal tabs */}
+        <div className="flex min-w-0 items-center gap-1 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 pr-2 border-r border-white/[0.06] text-zinc-400">
+            <TerminalIcon size={14} className="text-emerald-400" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-white">
+              Terminal
+            </span>
           </div>
-          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white">
-            <TerminalSquare size={13} className="text-emerald-400" />
-            Terminal
-          </h2>
-          <span className="text-[11px] text-zinc-600">
-            {user}@{projectName}
-          </span>
+
+          {/* Terminal Tabs */}
+          <div className="flex items-center gap-1">
+            {tabs.map((tab) => {
+              const isActive = tab.id === activeTabId;
+              const statusColor =
+                tab.status === "connected"
+                  ? "bg-emerald-400"
+                  : tab.status === "connecting" || tab.status === "syncing"
+                  ? "bg-amber-400 animate-pulse"
+                  : "bg-red-400";
+
+              return (
+                <div
+                  key={tab.id}
+                  onClick={() => setActiveTabId(tab.id)}
+                  className={`group flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1 text-xs transition-all ${
+                    isActive
+                      ? "bg-[#1f1f23] text-white shadow-xs"
+                      : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusColor}`}
+                    title={`Status: ${tab.status || "unknown"}`}
+                  />
+                  <span className="font-mono text-[11px] font-medium">
+                    {tab.title}
+                  </span>
+                  {tabs.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={(e) => closeTab(e, tab.id)}
+                      title="Kill terminal tab"
+                      className="rounded p-0.5 text-zinc-500 opacity-60 hover:bg-white/10 hover:text-white hover:opacity-100 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Add Tab Button */}
+            <button
+              type="button"
+              onClick={addTab}
+              title="New Terminal"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              <Plus size={13} />
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        {/* Right side: Actions & Controls */}
+        <div className="flex shrink-0 items-center gap-1.5 pl-2">
+          {/* User & Project badge */}
+          <span className="hidden sm:inline-block font-mono text-[11px] text-zinc-500 border-r border-white/[0.06] pr-2.5">
+            {userName}@{projectName}
+          </span>
+
+          {/* Reconnect button */}
           <button
-            onClick={() => setLines([])}
-            title="Clear terminal"
-            className="rounded-md p-1 text-zinc-500 hover:bg-white/10 hover:text-white"
+            type="button"
+            onClick={handleReconnect}
+            title="Restart / Reconnect terminal"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition-colors"
           >
-            <Trash2 size={13} />
+            <RefreshCw size={12} />
           </button>
+
+          {/* Clear terminal button */}
           <button
-            onClick={onClose}
-            title="Close panel"
-            className="rounded-md p-1 text-zinc-500 hover:bg-white/10 hover:text-white"
+            type="button"
+            onClick={handleClear}
+            title="Clear terminal (Ctrl+L)"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition-colors"
           >
-            <X size={14} />
+            <Trash2 size={12} />
           </button>
+
+          {/* Maximize / Restore button */}
+          <button
+            type="button"
+            onClick={toggleMaximize}
+            title={isMaximized ? "Restore terminal panel" : "Maximize terminal panel"}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition-colors"
+          >
+            {isMaximized ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+          </button>
+
+          {/* Close panel button */}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              title="Close terminal panel"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Output + input */}
-      <div
-        ref={scrollRef}
-        onClick={() => inputRef.current?.focus()}
-        className="flex-1 cursor-text overflow-y-auto p-3 font-mono text-xs leading-5 text-zinc-300"
-      >
-        {lines.map((line, i) => {
-          if (line.type === "input") {
-            return (
-              <div key={i} className="flex flex-wrap gap-x-2">
-                <span className="text-emerald-400">{user}@{projectName}</span>
-                <span className="text-sky-400">{line.path}</span>
-                <span className="text-zinc-500">$</span>
-                <span className="whitespace-pre-wrap text-white">{line.text}</span>
-              </div>
-            );
-          }
-          if (line.type === "list") {
-            return (
-              <div key={i} className="flex flex-wrap gap-x-4 gap-y-0.5">
-                {line.items.map((it) => (
-                  <span
-                    key={it._id || it.id || it.name}
-                    className={it.type === "file" ? "text-zinc-300" : "font-semibold text-sky-400"}
-                  >
-                    {it.name}
-                    {it.type !== "file" ? "/" : ""}
-                  </span>
-                ))}
-              </div>
-            );
-          }
-          const color =
-            line.type === "error"
-              ? "text-red-400"
-              : line.type === "info"
-              ? "text-emerald-400/80"
-              : line.type === "muted"
-              ? "text-zinc-600"
-              : "text-zinc-300";
-          return (
-            <div key={i} className={`whitespace-pre-wrap break-words ${color}`}>
-              {line.text}
-            </div>
-          );
-        })}
-
-        {/* Active prompt */}
-        <div className="flex flex-wrap items-center gap-x-2">
-          <span className="text-emerald-400">{user}@{projectName}</span>
-          <span className="text-sky-400">{promptPath}</span>
-          <span className="text-zinc-500">$</span>
-          <div className="relative min-w-[4px] flex-1">
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              spellCheck={false}
-              autoComplete="off"
-              autoCapitalize="off"
-              className="w-full bg-transparent text-white caret-emerald-400 outline-none"
-            />
-          </div>
-        </div>
+      {/* Terminal Viewports Container */}
+      <div className="relative flex-1 overflow-hidden bg-[#0c0c0e]">
+        {tabs.map((tab) => (
+          <TerminalInstance
+            key={tab.id}
+            ref={(el) => {
+              if (el) {
+                instanceRefs.current.set(tab.id, el);
+              } else {
+                instanceRefs.current.delete(tab.id);
+              }
+            }}
+            projectId={projectId}
+            userId={resolvedUserId}
+            isActive={tab.id === activeTabId}
+            onStatusChange={(status, msg) =>
+              handleStatusChange(tab.id, status, msg)
+            }
+          />
+        ))}
       </div>
     </motion.div>
   );

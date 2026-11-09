@@ -15,7 +15,7 @@ import { Code2, Eye, Maximize2, Minimize2, X } from "lucide-react";
 import { getFileIcon } from "../utils/Customized.icon";
 import Preview from "../component/Preview";
 import Editor from "../component/Editor";
-import BottomPanel from "../component/bottompanel";
+import BottomPanel from "../component/BottomPanel";
 import AiChat from "../component/AiChat";
 
 // Tool events that should trigger an explorer refresh
@@ -30,13 +30,12 @@ function ProjectPage() {
   const { id } = useParams();
   const [showExplorer, setShowExplorer] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [showTerminal, setShowTerminal] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
   const [isPreviewfullscreen, setisPreviewfullscreen] = useState(false);
   const [tree, setTree] = useState([]);
   const [openTabs, setOpenTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
-  const [showBpttomPanel , setShowBottomPanel]= useState(false)
+  const [showBottomPanel, setShowBottomPanel] = useState(false);
   const dispatch = useDispatch();
 
   const loadTree = useCallback(async () => {
@@ -114,7 +113,7 @@ function ProjectPage() {
         <ActivityBar
           showExplorer={showExplorer}
           setShowExplorer={setShowExplorer}
-          showTerminal={showBpttomPanel}
+          showTerminal={showBottomPanel}
           setShowTerminal={setShowBottomPanel}
           showAiChat={showAiChat}
           setShowAiChat={setShowAiChat}
@@ -305,12 +304,11 @@ function ProjectPage() {
           </div>
 
           <AnimatePresence>
-            {showBpttomPanel &&(
-              <div className="max-h-[45vh] md:max-h-none">
-                <BottomPanel
-                projectId={id}/>
-
-              </div>
+            {showBottomPanel && (
+              <BottomPanel
+                projectId={id}
+                onClose={() => setShowBottomPanel(false)}
+              />
             )}
           </AnimatePresence>
         </div>
