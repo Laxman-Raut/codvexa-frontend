@@ -127,6 +127,7 @@ Create a `.env` file in the `frontend/` directory (or verify existing settings):
 
 ```env
 VITE_SERVER_URL=http://localhost:8000
+VITE_TERMINAL_URL=http://localhost:8005
 VITE_FIREBASE_API_KEY=your_firebase_api_key_here
 ```
 

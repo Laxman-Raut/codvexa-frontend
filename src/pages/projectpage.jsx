@@ -43,6 +43,35 @@ function ProjectPage() {
     setTree(buildTree(data));
   }, [id]);
 
+  const handleTerminalFilesChanged = useCallback(async () => {
+    const data = await getTree(id);
+    const nextTree = buildTree(data);
+    const filesById = new Map();
+
+    const collectFiles = (nodes) => {
+      for (const node of nodes) {
+        const fileId = (node._id || node.id)?.toString();
+        if (fileId) filesById.set(fileId, node);
+        if (Array.isArray(node.children)) collectFiles(node.children);
+      }
+    };
+
+    collectFiles(nextTree);
+    setTree(nextTree);
+    setOpenTabs((tabs) =>
+      tabs.map((tab) => {
+        const fileId = (tab._id || tab.id)?.toString();
+        const refreshed = filesById.get(fileId);
+        return refreshed ? { ...tab, ...refreshed } : tab;
+      })
+    );
+    setActiveTab((tab) => {
+      const fileId = (tab?._id || tab?.id)?.toString();
+      const refreshed = filesById.get(fileId);
+      return refreshed ? { ...tab, ...refreshed } : tab;
+    });
+  }, [id]);
+
   useEffect(() => {
     const handleGetProject = async () => {
       const data = await getprojectById(id);
@@ -308,6 +337,7 @@ function ProjectPage() {
               <BottomPanel
                 projectId={id}
                 onClose={() => setShowBottomPanel(false)}
+                onFilesChanged={handleTerminalFilesChanged}
               />
             )}
           </AnimatePresence>

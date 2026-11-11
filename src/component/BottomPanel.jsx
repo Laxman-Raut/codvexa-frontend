@@ -21,6 +21,7 @@ function BottomPanel({
   projectId: propProjectId,
   projectName: propProjectName,
   onClose,
+  onFilesChanged,
 }) {
   const { id: paramProjectId } = useParams();
   const projectId = propProjectId || paramProjectId;
@@ -308,6 +309,7 @@ function BottomPanel({
             onStatusChange={(status, msg) =>
               handleStatusChange(tab.id, status, msg)
             }
+            onFilesChanged={onFilesChanged}
           />
         ))}
       </div>

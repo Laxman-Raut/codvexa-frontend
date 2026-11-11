@@ -331,6 +331,9 @@ function FileEditorSession({
     savingRef.current = saving;
   }, [saving]);
 
+  // When there are no local edits, render the latest server content directly.
+  const displayedCode = hasUnsavedChanges ? code : (activeTab?.content ?? "");
+
   // Clean up timer on unmount
   useEffect(() => {
     return () => {
@@ -429,7 +432,7 @@ function FileEditorSession({
     editor.focus();
   };
 
-  const lineCount = code.split("\n").length;
+  const lineCount = displayedCode.split("\n").length;
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-[#0c0c0f]">
@@ -546,7 +549,7 @@ function FileEditorSession({
           path={activeTab?.name || "untitled"}
           language={language}
           theme="vs-dark"
-          value={code}
+          value={displayedCode}
           onChange={handleEditorChange}
           onMount={handleEditorDidMount}
           options={{
@@ -629,7 +632,7 @@ function FileEditorSession({
           <span className="h-3 w-px bg-white/[0.08]" />
           <span>{lineCount} lines</span>
           <span className="h-3 w-px bg-white/[0.08]" />
-          <span>{code.length} chars</span>
+          <span>{displayedCode.length} chars</span>
         </div>
 
         <div className="flex items-center gap-3">

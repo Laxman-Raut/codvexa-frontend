@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -36,7 +43,7 @@ const TERMINAL_SERVICE_URL =
   import.meta.env.VITE_TERMINAL_URL || "http://localhost:8005";
 
 const TerminalInstance = forwardRef(function TerminalInstance(
-  { projectId, userId, isActive, onStatusChange },
+  { projectId, userId, isActive, onStatusChange, onFilesChanged },
   ref
 ) {
   const containerRef = useRef(null);
@@ -46,14 +53,20 @@ const TerminalInstance = forwardRef(function TerminalInstance(
   const resizeObserverRef = useRef(null);
   const initializedRef = useRef(false);
 
+  // Always points at the latest callback, so the socket listener never goes stale
+  const onFilesChangedRef = useRef(onFilesChanged);
+  onFilesChangedRef.current = onFilesChanged;
+  const onStatusChangeRef = useRef(onStatusChange);
+  onStatusChangeRef.current = onStatusChange;
+
   const [status, setStatus] = useState("connecting");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const updateStatus = (newStatus, msg = "") => {
+  const updateStatus = useCallback((newStatus, msg = "") => {
     setStatus(newStatus);
     setErrorMessage(msg);
-    onStatusChange?.(newStatus, msg);
-  };
+    onStatusChangeRef.current?.(newStatus, msg);
+  }, []);
 
   const clear = () => {
     termRef.current?.clear();
@@ -63,24 +76,7 @@ const TerminalInstance = forwardRef(function TerminalInstance(
     termRef.current?.focus();
   };
 
-  const reconnect = () => {
-    connectTerminal();
-  };
-
-  useImperativeHandle(ref, () => ({
-    clear,
-    focus,
-    reconnect,
-    fit: () => {
-      try {
-        fitAddonRef.current?.fit();
-      } catch {
-        // Ignored
-      }
-    },
-  }));
-
-  const connectTerminal = () => {
+  const connectTerminal = useCallback(() => {
     if (!projectId || !userId) {
       updateStatus(
         "error",
@@ -150,17 +146,32 @@ const TerminalInstance = forwardRef(function TerminalInstance(
       }
     });
 
+    socket.on("terminal:error", ({ message } = {}) => {
+      updateStatus("error", message || "The terminal could not be initialized.");
+    });
+
     socket.on("terminal:data", (data) => {
       if (termRef.current) {
         termRef.current.write(data);
       }
     });
 
+    // The terminal created, changed or deleted files: tell the page to reload the explorer
+    socket.on("terminal:files-changed", (payload) => {
+      onFilesChangedRef.current?.(payload);
+    });
+
     socket.on("connect_error", (error) => {
       console.warn("Terminal socket connect error:", error.message);
+      const message =
+        error.message === "unauthorized"
+          ? "Please sign in again to use the terminal."
+          : error.message === "authentication service unavailable"
+          ? "The authentication service is unavailable. Try again shortly."
+          : `Cannot reach terminal service at ${TERMINAL_SERVICE_URL}. Make sure it is running.`;
       updateStatus(
         "error",
-        `Cannot reach terminal service at ${TERMINAL_SERVICE_URL}. Make sure it is running.`
+        message
       );
     });
 
@@ -168,7 +179,28 @@ const TerminalInstance = forwardRef(function TerminalInstance(
       if (reason === "io client disconnect") return;
       updateStatus("disconnected", `Disconnected: ${reason}`);
     });
-  };
+  }, [projectId, userId, updateStatus]);
+
+  const reconnect = useCallback(() => {
+    connectTerminal();
+  }, [connectTerminal]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      clear,
+      focus,
+      reconnect,
+      fit: () => {
+        try {
+          fitAddonRef.current?.fit();
+        } catch {
+          // Ignored
+        }
+      },
+    }),
+    [reconnect]
+  );
 
   useEffect(() => {
     if (!containerRef.current || initializedRef.current) return;
@@ -251,7 +283,7 @@ const TerminalInstance = forwardRef(function TerminalInstance(
         socketRef.current = null;
       }
     };
-  }, [projectId, userId]);
+  }, [projectId, userId, connectTerminal]);
 
   useEffect(() => {
     if (!isActive) return;
