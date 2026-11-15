@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { AnimatePresence, motion } from "motion/react";
@@ -36,14 +36,35 @@ function ProjectPage() {
   const [openTabs, setOpenTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
   const [showBottomPanel, setShowBottomPanel] = useState(false);
+  const [workspaceRevision, setWorkspaceRevision] = useState(0);
+  const aiEditorContextRef = useRef(null);
   const dispatch = useDispatch();
+
+  const handleAiContextChange = useCallback((context) => {
+    aiEditorContextRef.current = context;
+  }, []);
+
+  const handleLiveFileContentChange = useCallback((file, content) => {
+    const fileId = (file?._id || file?.id || file?.name)?.toString();
+    if (!fileId) return;
+
+    const matchesFile = (item) =>
+      (item?._id || item?.id || item?.name)?.toString() === fileId;
+
+    setOpenTabs((tabs) =>
+      tabs.map((tab) => (matchesFile(tab) ? { ...tab, content } : tab))
+    );
+    setActiveTab((tab) =>
+      tab && matchesFile(tab) ? { ...tab, content } : tab
+    );
+  }, []);
 
   const loadTree = useCallback(async () => {
     const data = await getTree(id);
     setTree(buildTree(data));
   }, [id]);
 
-  const handleTerminalFilesChanged = useCallback(async () => {
+  const refreshProjectFiles = useCallback(async () => {
     const data = await getTree(id);
     const nextTree = buildTree(data);
     const filesById = new Map();
@@ -58,19 +79,24 @@ function ProjectPage() {
 
     collectFiles(nextTree);
     setTree(nextTree);
-    setOpenTabs((tabs) =>
-      tabs.map((tab) => {
+    const refreshedTabs = openTabs
+      .map((tab) => {
         const fileId = (tab._id || tab.id)?.toString();
         const refreshed = filesById.get(fileId);
-        return refreshed ? { ...tab, ...refreshed } : tab;
+        return refreshed ? { ...tab, ...refreshed } : null;
       })
-    );
+      .filter(Boolean);
+
+    setOpenTabs(refreshedTabs);
     setActiveTab((tab) => {
       const fileId = (tab?._id || tab?.id)?.toString();
-      const refreshed = filesById.get(fileId);
-      return refreshed ? { ...tab, ...refreshed } : tab;
+      const refreshed = fileId ? filesById.get(fileId) : null;
+      if (refreshed) return { ...tab, ...refreshed };
+      return refreshedTabs[0] || null;
     });
-  }, [id]);
+  }, [id, openTabs]);
+
+  const handleTerminalFilesChanged = refreshProjectFiles;
 
   useEffect(() => {
     const handleGetProject = async () => {
@@ -322,12 +348,9 @@ function ProjectPage() {
               <Editor
                 file={activeTab}
                 activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                setactiveTab={setActiveTab}
-                openTabs={openTabs}
-                setOpenTabs={setOpenTabs}
-                setOpenTb={setOpenTabs}
                 reloadTree={loadTree}
+                onContentChange={handleLiveFileContentChange}
+                onAiContextChange={handleAiContextChange}
               />
             )}
           </div>
@@ -338,6 +361,7 @@ function ProjectPage() {
                 projectId={id}
                 onClose={() => setShowBottomPanel(false)}
                 onFilesChanged={handleTerminalFilesChanged}
+                workspaceRevision={workspaceRevision}
               />
             )}
           </AnimatePresence>
@@ -348,10 +372,13 @@ function ProjectPage() {
 {showAiChat && (
   <AiChat
     projectId={id}
+    activeFile={activeTab}
+    editorContextRef={aiEditorContextRef}
     onToolEvent={(event) => {
-      // Auto-refresh the explorer whenever the AI creates / updates / deletes a file or folder
+      // Refresh open editor tabs and the terminal workspace after AI file changes.
       if (TREE_REFRESH_EVENTS.has(event.type)) {
-        loadTree();
+        refreshProjectFiles();
+        setWorkspaceRevision((revision) => revision + 1);
       }
     }}
   />

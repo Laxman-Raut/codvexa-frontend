@@ -52,6 +52,8 @@ const TerminalInstance = forwardRef(function TerminalInstance(
   const socketRef = useRef(null);
   const resizeObserverRef = useRef(null);
   const initializedRef = useRef(false);
+  const terminalReadyRef = useRef(false);
+  const pendingWorkspaceSyncRef = useRef(false);
 
   // Always points at the latest callback, so the socket listener never goes stale
   const onFilesChangedRef = useRef(onFilesChanged);
@@ -66,6 +68,16 @@ const TerminalInstance = forwardRef(function TerminalInstance(
     setStatus(newStatus);
     setErrorMessage(msg);
     onStatusChangeRef.current?.(newStatus, msg);
+  }, []);
+
+  const syncWorkspace = useCallback(() => {
+    const socket = socketRef.current;
+    if (!socket?.connected || !terminalReadyRef.current) {
+      pendingWorkspaceSyncRef.current = true;
+      return;
+    }
+
+    socket.emit("terminal:sync");
   }, []);
 
   const clear = () => {
@@ -90,6 +102,7 @@ const TerminalInstance = forwardRef(function TerminalInstance(
       socketRef.current.disconnect();
       socketRef.current = null;
     }
+    terminalReadyRef.current = false;
 
     updateStatus("connecting");
 
@@ -123,7 +136,12 @@ const TerminalInstance = forwardRef(function TerminalInstance(
     });
 
     socket.on("terminal:ready", ({ cols, rows } = {}) => {
+      terminalReadyRef.current = true;
       updateStatus("connected");
+      if (pendingWorkspaceSyncRef.current) {
+        pendingWorkspaceSyncRef.current = false;
+        socket.emit("terminal:sync");
+      }
       if (fitAddonRef.current && termRef.current) {
         try {
           fitAddonRef.current.fit();
@@ -176,6 +194,7 @@ const TerminalInstance = forwardRef(function TerminalInstance(
     });
 
     socket.on("disconnect", (reason) => {
+      terminalReadyRef.current = false;
       if (reason === "io client disconnect") return;
       updateStatus("disconnected", `Disconnected: ${reason}`);
     });
@@ -191,6 +210,7 @@ const TerminalInstance = forwardRef(function TerminalInstance(
       clear,
       focus,
       reconnect,
+      syncWorkspace,
       fit: () => {
         try {
           fitAddonRef.current?.fit();
@@ -199,7 +219,7 @@ const TerminalInstance = forwardRef(function TerminalInstance(
         }
       },
     }),
-    [reconnect]
+    [reconnect, syncWorkspace]
   );
 
   useEffect(() => {
@@ -282,6 +302,7 @@ const TerminalInstance = forwardRef(function TerminalInstance(
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      terminalReadyRef.current = false;
     };
   }, [projectId, userId, connectTerminal]);
 

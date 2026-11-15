@@ -33,6 +33,7 @@ const TOOL_META = {
         delete_file: "Deleting file…",
         get_file: "Reading file…",
         get_tree: "Reading project tree…",
+        install_dependencies: "Installing dependencies…",
       };
       return labels[data.tool] || `Running ${data.tool}…`;
     },
@@ -63,6 +64,12 @@ const TOOL_META = {
     color: "text-red-400",
     label: () => "Deleted file",
     detail: (data) => data.file?.name || null,
+  },
+  dependencies_installed: {
+    icon: Check,
+    color: "text-emerald-400",
+    label: () => "Installed dependencies",
+    detail: (data) => data.packageManager || "npm",
   },
   tool_error: {
     icon: FileMinus,
@@ -107,19 +114,37 @@ const ToolBadge = ({ eventType, data }) => {
 // ------------------------------------------------------------------
 // askAI — calls chat() and routes every SSE event to the UI
 // ------------------------------------------------------------------
-const askAI = async ({ messages, projectId, signal, onToolEvent }) => {
+const askAI = async ({ messages, projectId, editorContext, signal, onToolEvent }) => {
   const last = messages[messages.length - 1];
 
   // Build history from only real user/assistant turns (skip tool badges)
-  const history = messages
-    .filter((m) => (m.role === "user" || m.role === "assistant") && !m.error)
+  const previousMessages = messages
+    .filter((m) =>
+      (m.role === "user" || m.role === "assistant") &&
+      typeof m.text === "string" &&
+      !m.error
+    )
     .slice(0, -1)
     .map((m) => ({ role: m.role, content: m.text }));
+  const history = [];
+  let historyChars = 0;
+
+  for (let index = previousMessages.length - 1; index >= 0; index -= 1) {
+    if (history.length >= 8 || historyChars >= 12000) break;
+
+    const previous = previousMessages[index];
+    const content = previous.content.slice(0, Math.min(6000, 12000 - historyChars));
+    if (!content.trim()) continue;
+
+    history.unshift({ role: previous.role, content });
+    historyChars += content.length;
+  }
 
   const reply = await chat({
     projectId,
     message: last.text,
     history,
+    editorContext,
     signal,
     onEvent: (eventData) => {
       if (typeof onToolEvent === "function") {
@@ -366,7 +391,7 @@ function TypingDots() {
 // ------------------------------------------------------------------
 // Main component
 // ------------------------------------------------------------------
-function AiChat({ projectId, onToolEvent }) {
+function AiChat({ projectId, activeFile, editorContextRef, onToolEvent }) {
   const { id: paramId } = useParams();
   const activeProjectId =
     typeof projectId === "string" && projectId.trim() && projectId !== "true"
@@ -400,6 +425,33 @@ function AiChat({ projectId, onToolEvent }) {
   // Abort on unmount
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  const getEditorContext = () => {
+    if (!activeFile) return null;
+
+    const activeFileId = (activeFile._id || activeFile.id)?.toString();
+    const currentContext = editorContextRef?.current;
+    const currentContextKey = (currentContext?.fileId || currentContext?.id || currentContext?.name)?.toString();
+    const activeFileKey = (activeFileId || activeFile.name)?.toString();
+
+    if (currentContext && currentContextKey && currentContextKey === activeFileKey) {
+      return {
+        ...currentContext,
+        content: typeof currentContext.content === "string" ? currentContext.content.slice(0, 20000) : "",
+        selectedCode: typeof currentContext.selectedCode === "string" ? currentContext.selectedCode.slice(0, 8000) : "",
+      };
+    }
+
+    return {
+      fileId: activeFileId || "",
+      name: activeFile.name || "",
+      path: [activeFile.parentName, activeFile.name].filter(Boolean).join("/"),
+      language: activeFile.language || "",
+      content: typeof activeFile.content === "string" ? activeFile.content.slice(0, 20000) : "",
+      selectedCode: "",
+      unsavedChanges: false,
+    };
+  };
+
   const requestReply = async (history) => {
     const controller = new AbortController();
     abortRef.current = controller;
@@ -409,6 +461,7 @@ function AiChat({ projectId, onToolEvent }) {
       const reply = await askAI({
         messages: history,
         projectId: activeProjectId,
+        editorContext: getEditorContext(),
         signal: controller.signal,
 
         // ── This fires for EVERY tool SSE event the backend sends ──

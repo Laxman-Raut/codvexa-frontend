@@ -22,6 +22,7 @@ const TOOL_EVENTS = new Set([
   "file_updated",
   "file_deleted",
   "folder_created",
+  "dependencies_installed",
   "tool_error",
   "tool_result",
 ]);
@@ -30,6 +31,7 @@ export const chat = async ({
   projectId,
   message,
   history = [],
+  editorContext = null,
   signal,
   onEvent,
 }) => {
@@ -43,7 +45,7 @@ export const chat = async ({
         Accept: "text/event-stream",
         "x-user-id": localStorage.getItem("userId") || "",
       },
-      body: JSON.stringify({ projectId, message, history }),
+      body: JSON.stringify({ projectId, message, history, editorContext }),
       signal,
     }
   );

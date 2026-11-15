@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import MonacoEditor from "@monaco-editor/react";
 import { updateFile } from "../features/file";
+
+const AUTO_SAVE_DELAY_MS = 600;
 import { getFileIcon } from "../utils/Customized.icon";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -309,6 +311,8 @@ const setupMonacoLanguageProviders = (monaco) => {
 function FileEditorSession({
   activeTab,
   onSaveFile,
+  onContentChange,
+  onAiContextChange,
 }) {
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -321,6 +325,9 @@ function FileEditorSession({
   const autoSaveTimerRef = useRef(null);
   const codeRef = useRef(code);
   const savingRef = useRef(false);
+  const executeSaveRef = useRef(null);
+  const savedContentRef = useRef(activeTab?.content ?? "");
+  const queuedSaveRef = useRef(null);
 
   // Keep ref synchronized
   useEffect(() => {
@@ -328,10 +335,14 @@ function FileEditorSession({
   }, [code]);
 
   useEffect(() => {
-    savingRef.current = saving;
-  }, [saving]);
+    if (hasUnsavedChanges) return;
+    const latestContent = activeTab?.content ?? "";
+    codeRef.current = latestContent;
+    savedContentRef.current = latestContent;
+    setCode(latestContent);
+  }, [activeTab?.content, hasUnsavedChanges]);
 
-  // When there are no local edits, render the latest server content directly.
+  // When there are no local edits, sync with the current tab content.
   const displayedCode = hasUnsavedChanges ? code : (activeTab?.content ?? "");
 
   // Clean up timer on unmount
@@ -339,6 +350,8 @@ function FileEditorSession({
     return () => {
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+        executeSaveRef.current?.(codeRef.current);
       }
     };
   }, []);
@@ -348,29 +361,89 @@ function FileEditorSession({
   const AciveIcon = fileIconData?.Icon || fileIconData?.icon || FileCode;
   const activeColor = fileIconData?.color || "text-zinc-400";
 
+  const publishAiContext = useCallback(
+    (editorInstance, contentOverride, unsavedOverride) => {
+      if (!onAiContextChange || !editorInstance) return;
+
+      const selection = editorInstance.getSelection();
+      const model = editorInstance.getModel();
+      const selectedCode = selection && !selection.isEmpty()
+        ? model?.getValueInRange(selection) || ""
+        : "";
+
+      onAiContextChange({
+        fileId: (activeTab?._id || activeTab?.id)?.toString() || "",
+        name: activeTab?.name || "",
+        path: [activeTab?.parentName, activeTab?.name].filter(Boolean).join("/"),
+        language: activeTab?.language || language,
+        content: typeof contentOverride === "string" ? contentOverride : editorInstance.getValue(),
+        selectedCode,
+        unsavedChanges: typeof unsavedOverride === "boolean" ? unsavedOverride : hasUnsavedChanges,
+      });
+    },
+    [activeTab, hasUnsavedChanges, language, onAiContextChange],
+  );
+
   // Core save execution
   const executeSave = useCallback(
     async (contentToSave) => {
       const fileId = activeTab?._id || activeTab?.id;
-      if (!fileId || savingRef.current) return;
+      if (!fileId) return false;
 
-      const codeToPersist =
+      let codeToPersist =
         contentToSave !== undefined ? contentToSave : codeRef.current;
 
-      setSaving(true);
-      const success = await onSaveFile(activeTab, codeToPersist);
-      setSaving(false);
+      if (savingRef.current) {
+        queuedSaveRef.current = codeToPersist;
+        return false;
+      }
 
-      if (success) {
+      if (codeToPersist === savedContentRef.current) {
+        setHasUnsavedChanges(false);
+        return true;
+      }
+
+      savingRef.current = true;
+      setSaving(true);
+      let success = true;
+
+      try {
+        while (codeToPersist !== savedContentRef.current) {
+          success = await onSaveFile(activeTab, codeToPersist);
+          if (!success) break;
+
+          savedContentRef.current = codeToPersist;
+          const queuedContent = queuedSaveRef.current;
+          queuedSaveRef.current = null;
+          codeToPersist = queuedContent ?? codeRef.current;
+        }
+      } finally {
+        savingRef.current = false;
+        setSaving(false);
+      }
+
+      if (!success) {
+        queuedSaveRef.current = null;
+        setHasUnsavedChanges(true);
+        return false;
+      }
+
+      if (codeRef.current === savedContentRef.current) {
         setJustSaved(true);
         setHasUnsavedChanges(false);
+        publishAiContext(editorRef.current, codeRef.current, false);
         setTimeout(() => {
           setJustSaved(false);
         }, 2200);
+      } else {
+        setHasUnsavedChanges(true);
       }
+
+      return true;
     },
-    [activeTab, onSaveFile]
+    [activeTab, onSaveFile, publishAiContext]
   );
+  executeSaveRef.current = executeSave;
 
   // Manual save trigger
   const handleManualSave = useCallback(async () => {
@@ -384,20 +457,24 @@ function FileEditorSession({
     await executeSave(currentCode);
   }, [executeSave]);
 
-  // Handle code changes from Monaco with 15-second debounced auto-save
+  // Update the preview immediately and save shortly after typing pauses.
   const handleEditorChange = (value) => {
     const nextVal = value ?? "";
+    codeRef.current = nextVal;
     setCode(nextVal);
     setHasUnsavedChanges(true);
     setJustSaved(false);
+    onContentChange?.(activeTab, nextVal);
+    publishAiContext(editorRef.current, nextVal, true);
 
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
     }
 
     autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTimerRef.current = null;
       executeSave(nextVal);
-    }, 15000);
+    }, AUTO_SAVE_DELAY_MS);
   };
 
   // Configure Monaco instance on mount
@@ -423,6 +500,9 @@ function FileEditorSession({
         selectionLength: selLen,
       });
     });
+
+    editor.onDidChangeCursorSelection(() => publishAiContext(editor));
+    publishAiContext(editor, undefined, false);
 
     // Register Ctrl+S / Cmd+S save command inside Monaco
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
@@ -457,7 +537,7 @@ function FileEditorSession({
             </span>
             {hasUnsavedChanges && (
               <span
-                title="Unsaved changes (auto-saving in 15s)"
+                title="Unsaved changes (auto-saving shortly)"
                 className="h-2 w-2 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"
               />
             )}
@@ -480,7 +560,7 @@ function FileEditorSession({
             ) : hasUnsavedChanges ? (
               <span className="flex items-center gap-1 text-amber-400/90">
                 <Clock size={11} />
-                <span>Auto-save in 15s</span>
+                <span>Auto-save shortly</span>
               </span>
             ) : (
               <span className="flex items-center gap-1 text-zinc-500">
@@ -652,11 +732,9 @@ function FileEditorSession({
 function Editor({
   file,
   activeTab: propActiveTab,
-  setActiveTab: propSetActiveTab,
-  setactiveTab: propSetactiveTab,
-  setOpenTabs: propSetOpenTabs,
-  setOpenTb: propSetOpenTb,
   reloadTree,
+  onContentChange,
+  onAiContextChange,
 }) {
   const activeTab = propActiveTab || file;
 
@@ -672,22 +750,6 @@ function Editor({
           id: fileId,
         });
 
-        const updateTabFn = propSetactiveTab || propSetActiveTab;
-        if (updateTabFn) {
-          updateTabFn((prev) =>
-            prev ? { ...prev, content: newContent } : { ...fileObj, content: newContent }
-          );
-        }
-
-        const updateTabsFn = propSetOpenTb || propSetOpenTabs;
-        if (updateTabsFn) {
-          updateTabsFn((tabs) =>
-            tabs.map((t) =>
-              (t._id || t.id) === fileId ? { ...t, content: newContent } : t
-            )
-          );
-        }
-
         if (reloadTree) {
           await reloadTree();
         }
@@ -698,7 +760,7 @@ function Editor({
         return false;
       }
     },
-    [propSetactiveTab, propSetActiveTab, propSetOpenTb, propSetOpenTabs, reloadTree]
+    [reloadTree]
   );
 
   if (!activeTab) {
@@ -732,7 +794,7 @@ function Editor({
               <kbd className="font-mono text-zinc-400">Tab</kbd> Autocomplete
             </span>
             <span className="flex items-center gap-1 rounded-md border border-white/[0.06] bg-white/[0.03] px-2.5 py-1 text-zinc-400">
-              <Sparkles size={11} /> Auto-save 15s
+              <Sparkles size={11} /> Auto-save shortly
             </span>
           </div>
         </div>
@@ -747,6 +809,8 @@ function Editor({
       key={sessionKey}
       activeTab={activeTab}
       onSaveFile={handleSaveFile}
+      onContentChange={onContentChange}
+      onAiContextChange={onAiContextChange}
     />
   );
 }

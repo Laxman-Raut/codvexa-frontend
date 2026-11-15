@@ -22,6 +22,7 @@ function BottomPanel({
   projectName: propProjectName,
   onClose,
   onFilesChanged,
+  workspaceRevision = 0,
 }) {
   const { id: paramProjectId } = useParams();
   const projectId = propProjectId || paramProjectId;
@@ -68,6 +69,16 @@ function BottomPanel({
 
   // Keep references to terminal instances to invoke clear, reconnect, etc.
   const instanceRefs = useRef(new Map());
+  const lastWorkspaceRevisionRef = useRef(workspaceRevision);
+
+  useEffect(() => {
+    if (workspaceRevision === lastWorkspaceRevisionRef.current) return;
+    lastWorkspaceRevisionRef.current = workspaceRevision;
+
+    for (const instance of instanceRefs.current.values()) {
+      instance?.syncWorkspace?.();
+    }
+  }, [workspaceRevision]);
 
   const addTab = () => {
     const nextNum = tabs.length + 1;
